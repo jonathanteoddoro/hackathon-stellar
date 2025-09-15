@@ -1,4 +1,4 @@
 export class NodeMessage {
-  payload: object;
-  metadata: { [key: string]: any };
+  payload?: object;
+  metadata?: { [key: string]: any };
 }
