@@ -75,7 +75,10 @@ export class FlowController {
   constructor(private readonly flowService: FlowService) {}
 
   @Post('trigger/:triggerId')
-  httpTrigger(@Param('triggerId') triggerId: string, @Body() payload: object) {
-    return this.flowService.executeFlow(data, payload, triggerId);
+  async httpTrigger(
+    @Param('triggerId') triggerId: string,
+    @Body() payload: object,
+  ) {
+    return await this.flowService.executeFlow(data, payload, triggerId);
   }
 }

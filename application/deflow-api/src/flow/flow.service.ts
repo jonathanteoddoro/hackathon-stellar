@@ -16,11 +16,11 @@ interface FlowData {
 @Injectable()
 export class FlowService {
   constructor() {}
-  executeFlow(
+  async executeFlow(
     flowData: FlowData,
     triggerPayload: object,
     triggerNodeId: string,
-  ): void {
+  ): Promise<void> {
     const currentNode = flowData.nodes.find(
       (node) => node.id === triggerNodeId,
     );
@@ -44,7 +44,7 @@ export class FlowService {
         queue.push(...currentNode.successFlow);
       } else if (nodeInstance instanceof ActionNode) {
         try {
-          currentMessage = nodeInstance.execute(currentMessage!);
+          currentMessage = await nodeInstance.execute(currentMessage!);
           console.log(
             `Action Node [${nodeInstance.name}] executed successfully.`,
           );
