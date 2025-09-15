@@ -1,45 +1,28 @@
-import { LoggerNode } from '../utils/LoggerNode';
+import { LoggerNode } from 'src/utils/LoggerNode';
+import { ActionNode } from '../utils/ActionNode';
 import { NodeMessage } from '../utils/NodeMessage';
-import nodemailer from 'nodemailer';
 
-type GmailConfig = {
-  user?: string;  
-  pass?: string;   
-  to?: string;    
-};
 
-export class EmailLoggerNode extends LoggerNode {
-  name = 'email-logger';
-  description = 'Sends a log message via Gmail using nodemailer';
+export class LoggerTemplate extends LoggerNode {
+    name = 'logger-template';
+    description = 'A template for creating new logger nodes';
+    private transporter: any;
+    private from: string;
+    private to: string;
 
-  private transporter: any;
-  private from: string;
-  private to: string;
-
-  constructor(config: GmailConfig, transporter?: ReturnType<typeof nodemailer.createTransport>) {
-    super();
-
-    if (transporter) {
-      this.transporter = transporter;
-      this.from = config.user || 'no-reply@example.com';
-      this.to = config.to || this.from;
-    } else {
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: config.user,
-          pass: config.pass,
-        },
-      });
-
-      this.from = config.user || '';
-      this.to = config.to || '';
+    constructor(params: Record<string, string>) {
+        super();
+        this.transporter = params['transporter'];
+        this.from = params['from'];
+        this.to = params['to'];
     }
-  }
 
-  async execute(message: NodeMessage) {
+    async execute(message: NodeMessage): Promise<NodeMessage> {
+        
     const subject = message.metadata?.subject || `Log: ${this.name}`;
     const body = this.renderBody(message);
+
+    const out = new NodeMessage();
 
     try {
       const mailOptions: any = {
@@ -53,9 +36,11 @@ export class EmailLoggerNode extends LoggerNode {
 
       const info = await this.transporter.sendMail(mailOptions);
 
-      return { success: true, info };
+      out.payload = { success: true, info };
+      return out;
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : String(err) };
+      out.payload = { success: false, error: err instanceof Error ? err.message : String(err) };
+      return out;
     }
   }
 
@@ -75,5 +60,3 @@ export class EmailLoggerNode extends LoggerNode {
     );
   }
 }
-
-export default EmailLoggerNode;

@@ -91,7 +91,7 @@ export class SwapNode extends ActionNode {
       return { ...message, payload: result };
     } catch (error) {
       console.error(error);
-      return { ...message, payload: { error: error instanceof Error ? error.message : String(error) } };
+      return { ...message, payload: { error } };
     }
   }
 }
