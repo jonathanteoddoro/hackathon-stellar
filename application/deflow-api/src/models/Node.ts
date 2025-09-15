@@ -4,10 +4,12 @@ export class Node {
   id: string;
   x: number;
   y: number;
-  outputs: Node[];
+  successFlow: Node[];
+  errorFlow?: Node[];
   type: NodeType;
   name: string;
   description: string;
+  params: Record<string, string>;
   requiredInputPayloadKeysTypes: { [key: string]: string };
   outputPayloadKeysTypes: { [key: string]: string };
 }

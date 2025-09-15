@@ -23,7 +23,7 @@ const data = {
         value: 'number',
         txHash: 'string',
       },
-      outputs: [
+      successFlow: [
         {
           id: 'action-token-price',
           x: 400,
@@ -39,7 +39,7 @@ const data = {
             valueUsd: 'number',
             tokenSymbol: 'string',
           },
-          outputs: [
+          successFlow: [
             {
               id: 'logger-transaction',
               x: 700,
@@ -54,9 +54,10 @@ const data = {
                 valueUsd: 'number',
               },
               outputPayloadKeysTypes: {},
-              outputs: [],
+              successFlow: [],
             },
           ],
+          errorFlow: [],
         },
       ],
     },

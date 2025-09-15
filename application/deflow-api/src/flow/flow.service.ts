@@ -30,30 +30,31 @@ export class FlowService {
     while (queue.length > 0) {
       const currentNode = queue.shift();
       if (!currentNode) continue;
-      queue.push(
-        ...currentNode.outputs.filter(
-          (node): node is Node => node !== undefined,
-        ),
+
+      const nodeInstance = NodeFactory.create(
+        currentNode.name,
+        currentNode.params,
       );
-      const nodeInstance = NodeFactory.create(currentNode.name);
       if (nodeInstance instanceof TriggerNode) {
         currentMessage = nodeInstance.validatePayload(triggerPayload);
         console.log(
           `Trigger Node [${nodeInstance.name}] validated payload:`,
           currentMessage,
         );
+        queue.push(...currentNode.successFlow);
       } else if (nodeInstance instanceof ActionNode) {
         try {
-          nodeInstance.whenResolved();
+          currentMessage = nodeInstance.execute(currentMessage!);
           console.log(
             `Action Node [${nodeInstance.name}] executed successfully.`,
           );
+          queue.push(...currentNode.successFlow);
         } catch (error) {
-          nodeInstance.whenRejected();
           console.error(
             `Action Node [${nodeInstance.name}] execution failed:`,
             error,
           );
+          if (currentNode.errorFlow) queue.push(...currentNode.errorFlow);
         }
       } else if (nodeInstance instanceof LoggerNode) {
         if (currentMessage) {

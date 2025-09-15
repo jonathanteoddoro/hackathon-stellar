@@ -5,7 +5,7 @@ import { NodeType } from './NodeType';
 
 export type BaseNode = TriggerNode | ActionNode | LoggerNode;
 
-type NodeConstructor<T extends BaseNode> = new () => T;
+type NodeConstructor<T extends BaseNode> = new (params: object) => T;
 type NodeCategory = NodeType;
 
 class NodeFactory {
@@ -22,14 +22,16 @@ class NodeFactory {
     this.categoryMap.set(identifier, category);
   }
 
-  // Cria nó baseado no identificador específico
-  static create(identifier: string): BaseNode | null {
+  static create(
+    identifier: string,
+    customParams: Record<string, string>,
+  ): BaseNode | null {
     const NodeClass = this.registry.get(identifier);
     if (!NodeClass) {
       console.error(`Nó '${identifier}' não encontrado no registry`);
       return null;
     }
-    return new NodeClass();
+    return new NodeClass(customParams);
   }
 
   // Lista todos os nós registrados
