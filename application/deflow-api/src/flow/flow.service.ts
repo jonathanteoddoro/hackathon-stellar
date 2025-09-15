@@ -4,7 +4,7 @@ import { LoggerNode } from 'src/utils/LoggerNode';
 import { Node } from 'src/models/Node';
 import { NodeMessage } from 'src/utils/NodeMessage';
 import { TriggerNode } from 'src/utils/TriggerNode';
-import { NodeFactory } from 'src/utils/NodeRegistry';
+import { NodeFactory } from 'src/utils/NodeFactory';
 
 interface FlowData {
   flowId: string;

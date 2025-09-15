@@ -12,7 +12,8 @@ import { ActionNode } from '../utils/ActionNode';
 import { NodeMessage } from '../utils/NodeMessage';
 
 const NETWORK = SupportedNetworks.TESTNET;
-const API_BASE_URL = process.env.SOROSWAP_API_URL || 'https://api.soroswap.finance';
+const API_BASE_URL =
+  process.env.SOROSWAP_API_URL || 'https://api.soroswap.finance';
 
 async function rateLimitDelay(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -78,8 +79,14 @@ export class SwapNode extends ActionNode {
 
       await rateLimitDelay();
 
-      const buildedQuoteResponse = await sdk.build(buildedQuoteParams, SupportedNetworks.TESTNET);
-      const transaction: Transaction = new Transaction(buildedQuoteResponse.xdr, Networks.TESTNET);
+      const buildedQuoteResponse = await sdk.build(
+        buildedQuoteParams,
+        SupportedNetworks.TESTNET,
+      );
+      const transaction: Transaction = new Transaction(
+        buildedQuoteResponse.xdr,
+        Networks.TESTNET,
+      );
       transaction.sign(userKeypair);
 
       const signedTx = transaction.toXDR();

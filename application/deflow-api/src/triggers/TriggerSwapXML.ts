@@ -23,7 +23,10 @@ export class TriggerSwapXML extends TriggerNode {
     }
 
     // Validar carteira de destino USDT
-    if (!typedPayload.usdtWallet || typeof typedPayload.usdtWallet !== 'string') {
+    if (
+      !typedPayload.usdtWallet ||
+      typeof typedPayload.usdtWallet !== 'string'
+    ) {
       throw new Error('Campo "usdtWallet" é obrigatório e deve ser uma string');
     }
 
@@ -50,14 +53,14 @@ export class TriggerSwapXML extends TriggerNode {
         usdtWallet: typedPayload.usdtWallet.trim(),
         userEmail: typedPayload.userEmail.trim().toLowerCase(),
         timestamp: new Date().toISOString(),
-        transactionId: `swap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        transactionId: `swap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       },
       metadata: {
         triggerId: 'swap-xml-usdt',
         triggerType: 'api-call',
         validation: 'success',
         estimatedUSDT: typedPayload.xmlAmount * 1, // Exemplo: taxa de conversão
-        fees: typedPayload.xmlAmount * 0.00 // Exemplo: taxa de 0%
+        fees: typedPayload.xmlAmount * 0.0, // Exemplo: taxa de 0%
       },
     };
   }

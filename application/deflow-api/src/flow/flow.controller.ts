@@ -13,10 +13,11 @@ const data = {
       x: 100,
       y: 200,
       type: NodeType.Trigger,
-      name: 'Ethereum Transfer Trigger',
+      name: 'EthereumTransferTrigger',
       description:
         'Dispara quando ocorre uma transferência no contrato ERC20 configurado.',
       requiredInputPayloadKeysTypes: {},
+      params: {},
       outputPayloadKeysTypes: {
         from: 'string',
         to: 'string',
@@ -29,7 +30,11 @@ const data = {
           x: 400,
           y: 200,
           type: NodeType.Action,
-          name: 'Fetch Token Price',
+          name: 'FetchTokenPrice',
+          params: {
+            tokenContractAddress: '0xYourTokenContractAddress',
+            network: 'ethereum',
+          },
           description:
             'Busca o preço atual do token via API (ex: Coingecko ou DEX).',
           requiredInputPayloadKeysTypes: {
@@ -45,7 +50,8 @@ const data = {
               x: 700,
               y: 200,
               type: NodeType.Logger,
-              name: 'Transaction Logger',
+              name: 'TransactionLogger',
+              params: {},
               description:
                 'Salva no log as informações da transação e valor em USD.',
               requiredInputPayloadKeysTypes: {
