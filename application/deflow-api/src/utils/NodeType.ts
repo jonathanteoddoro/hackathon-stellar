@@ -1,5 +1,5 @@
 export enum NodeType {
-  Trigger,
-  Action,
-  Logger,
+  Trigger = 'Trigger',
+  Action = 'Action',
+  Logger = 'Logger',
 }
