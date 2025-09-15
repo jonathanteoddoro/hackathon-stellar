@@ -6,5 +6,5 @@ export enum ActionClassMap {
 export abstract class ActionNode {
   abstract name: string;
   abstract description: string;
-  abstract execute(message: NodeMessage): NodeMessage;
+  abstract execute(message: NodeMessage): Promise<NodeMessage>;
 }

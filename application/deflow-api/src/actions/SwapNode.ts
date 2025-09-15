@@ -1,69 +1,97 @@
-import "dotenv/config"
-import {SupportedNetworks, type SoroswapSDKConfig, SoroswapSDK, type QuoteRequest, TradeType, SupportedProtocols, type BuildQuoteRequest} from '@soroswap/sdk'
-import { Keypair, Networks, Transaction } from '@stellar/stellar-sdk'
+import {
+  SupportedNetworks,
+  type SoroswapSDKConfig,
+  SoroswapSDK,
+  type QuoteRequest,
+  TradeType,
+  SupportedProtocols,
+  type BuildQuoteRequest,
+} from '@soroswap/sdk';
+import { Keypair, Networks, Transaction } from '@stellar/stellar-sdk';
+import { ActionNode } from '../utils/ActionNode';
+import { NodeMessage } from '../utils/NodeMessage';
 
 const NETWORK = SupportedNetworks.TESTNET;
-const api_key = process.env.SOROSWAP_API_KEY
 const API_BASE_URL = process.env.SOROSWAP_API_URL || 'https://api.soroswap.finance';
-const userSecret = process.env.USER_SECRET!
-const userKeypair = Keypair.fromSecret(userSecret)
-
-if(!api_key) throw new Error('no api key found on .env file')
-const sdkConfig: SoroswapSDKConfig = {
-  apiKey: api_key,
-  defaultNetwork: NETWORK,
-  baseUrl: API_BASE_URL,
-  timeout: 30000
-}
-
-const EXAMPLE_ADDRESSES = {
-  USER: userKeypair.publicKey(),
-  XLM_ASSET: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC',
-  USDC_ASSET: 'CDWEFYYHMGEZEFC5TBUDXM3IJJ7K7W5BDGE765UIYQEV4JFWDOLSTOEK',
-};
 
 async function rateLimitDelay(): Promise<void> {
-  console.log('⏳ Waiting 1 second to respect API rate limits...');
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 }
 
-async function runExample(): Promise<void> {
-  const sdk = new SoroswapSDK(sdkConfig)
+export interface SwapParams {
+  user_secret: string;
+}
 
-  const quoteRequest: QuoteRequest = {
-    assetIn: EXAMPLE_ADDRESSES.XLM_ASSET,
-    assetOut: EXAMPLE_ADDRESSES.USDC_ASSET,
-    amount: BigInt(10000000), 
-    tradeType: TradeType.EXACT_IN,
-    protocols: [SupportedProtocols.SOROSWAP],
-    slippageBps: 80
-  };
+export class SwapNode extends ActionNode {
+  name = 'SwapNode';
+  description = 'Executes a swap using Soroswap SDK';
 
-  try {
-    const quote = await sdk.quote(quoteRequest)
-    await rateLimitDelay()
+  private readonly params: SwapParams;
 
-    const buildedQuoteParams: BuildQuoteRequest = {
-      quote: quote,
-      from: EXAMPLE_ADDRESSES.USER,
-      to: EXAMPLE_ADDRESSES.USER
+  constructor(params: SwapParams) {
+    super();
+    if (!params || !params.user_secret) {
+      throw new Error('SwapNode requires a valid user_secret in constructor');
     }
-    await rateLimitDelay()
+    this.params = params;
+  }
 
-    const buildedQuoteResponse = await sdk.build(buildedQuoteParams, SupportedNetworks.TESTNET)
-    const transaction: Transaction = new Transaction(buildedQuoteResponse.xdr, Networks.TESTNET)
-    transaction.sign(userKeypair)
+  async execute(message: NodeMessage): Promise<NodeMessage> {
+    const api_key = process.env.SOROSWAP_API_KEY;
+    if (!api_key) throw new Error('no api key found on process.env');
 
-    const signedTx = transaction.toXDR()
-    await rateLimitDelay()
+    const sdkConfig: SoroswapSDKConfig = {
+      apiKey: api_key,
+      defaultNetwork: NETWORK,
+      baseUrl: API_BASE_URL,
+      timeout: 30000,
+    };
 
+    const userKeypair = Keypair.fromSecret(this.params.user_secret);
 
-    const result = await sdk.send(signedTx)
-    console.log(result)
+    const EXAMPLE_ADDRESSES = {
+      USER: userKeypair.publicKey(),
+      XLM_ASSET: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC',
+      USDC_ASSET: 'CDWEFYYHMGEZEFC5TBUDXM3IJJ7K7W5BDGE765UIYQEV4JFWDOLSTOEK',
+    };
 
-    
-  } catch (error) {
-    console.log(error)
+    const sdk = new SoroswapSDK(sdkConfig);
+
+    const quoteRequest: QuoteRequest = {
+      assetIn: EXAMPLE_ADDRESSES.XLM_ASSET,
+      assetOut: EXAMPLE_ADDRESSES.USDC_ASSET,
+      amount: BigInt(10000000),
+      tradeType: TradeType.EXACT_IN,
+      protocols: [SupportedProtocols.SOROSWAP],
+      slippageBps: 80,
+    };
+
+    try {
+      const quote = await sdk.quote(quoteRequest);
+      await rateLimitDelay();
+
+      const buildedQuoteParams: BuildQuoteRequest = {
+        quote: quote,
+        from: EXAMPLE_ADDRESSES.USER,
+        to: EXAMPLE_ADDRESSES.USER,
+      };
+
+      await rateLimitDelay();
+
+      const buildedQuoteResponse = await sdk.build(buildedQuoteParams, SupportedNetworks.TESTNET);
+      const transaction: Transaction = new Transaction(buildedQuoteResponse.xdr, Networks.TESTNET);
+      transaction.sign(userKeypair);
+
+      const signedTx = transaction.toXDR();
+      await rateLimitDelay();
+
+      const result = await sdk.send(signedTx);
+      console.log(result);
+
+      return { ...message, payload: result };
+    } catch (error) {
+      console.error(error);
+      return { ...message, payload: { error: error instanceof Error ? error.message : String(error) } };
+    }
   }
 }
-runExample()
