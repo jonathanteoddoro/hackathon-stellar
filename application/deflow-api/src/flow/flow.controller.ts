@@ -48,4 +48,13 @@ export class FlowController {
 
     return await this.flowService.deployFlow(flowId);
   }
+
+  @Post(':flowId/undeploy')
+  async undeploy(@Param('flowId') flowId: string) {
+    if (flowId) {
+      throw new Error('triggerId and flowId are required');
+    }
+
+    return await this.flowService.undeployFlow(flowId);
+  }
 }

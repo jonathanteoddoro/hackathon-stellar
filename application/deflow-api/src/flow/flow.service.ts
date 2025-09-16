@@ -279,6 +279,44 @@ export class FlowService {
     }
   }
 
+  async undeployFlow(flowId: string): Promise<void> {
+    const triggersNodes = await this.flowNodeModel
+      .find({ flowId, type: NodeType.Trigger })
+      .exec();
+
+    if (triggersNodes.length === 0) {
+      throw new Error('No trigger nodes found in the flow');
+    }
+    for (const triggerNode of triggersNodes) {
+      const nodeInstance = NodeFactory.create(
+        triggerNode.name,
+        triggerNode.params,
+      );
+      if (!(nodeInstance instanceof TriggerNode)) {
+        throw new Error(`Node ${triggerNode.name} is not a trigger node`);
+      }
+      if (nodeInstance.isJobTrigger) {
+        try {
+          const jobName = `cron-job-${triggerNode.get('id')}`;
+          if (this.schedulerRegistry.doesExist('cron', jobName)) {
+            this.schedulerRegistry.deleteCronJob(jobName);
+            this.logger.log(`Job trigger ${triggerNode.name} stopped`);
+          } else {
+            this.logger.warn(
+              `Job trigger ${triggerNode.name} does not exist in scheduler`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to stop job trigger ${triggerNode.name}:`,
+            (error as Error)?.stack,
+          );
+          throw error;
+        }
+      }
+    }
+  }
+
   private extractVariables(value: string, payload: object): string {
     const varMatches = value.matchAll(/{{(.*?)}}/g);
     let finalValue = value;

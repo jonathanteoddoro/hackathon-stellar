@@ -1,5 +1,6 @@
 import { TriggerNode } from 'src/utils/TriggerNode';
 import { NodeMessage } from 'src/utils/NodeMessage';
+import { CronJob } from 'cron';
 
 export class HttpTrigger extends TriggerNode {
   name = 'HTTPTrigger';
@@ -22,7 +23,7 @@ export class HttpTrigger extends TriggerNode {
     };
   }
 
-  async execute(): Promise<NodeMessage> {
-    return this.validatePayload({});
+  execute(): { jobName: string; job: CronJob } {
+    throw new Error('HTTPTrigger does not support execute method');
   }
 }
