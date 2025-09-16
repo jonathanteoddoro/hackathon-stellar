@@ -1798,6 +1798,7 @@ const Feature = () => {
                           try {
                             // Validate and parse JSON
                             const parsedParams = JSON.parse(editingParams);
+                            console.log("Parsed Params:", parsedParams);
                             const parsedVariables =
                               JSON.parse(editingVariables);
 
@@ -1852,6 +1853,7 @@ const Feature = () => {
                             }
                           } catch (error) {
                             if (error instanceof SyntaxError) {
+                              console.error("JSON Syntax Error:", error);
                               alert(
                                 "Invalid JSON format. Please check your parameters and variables."
                               );
