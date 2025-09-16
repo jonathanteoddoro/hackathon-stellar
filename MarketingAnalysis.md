@@ -55,10 +55,9 @@ The platform enables users to build "Flows" that automate on-chain and off-chain
 * **Trigger Engine:** A versatile set of triggers to initiate workflows [34]:
     * **On-Chain Triggers:** Real-time monitoring of blockchain activity (e.g., new blocks, specific contract events, price updates from oracles like the Reflector Network [36]).
     * **Time-Based Triggers:** Scheduled execution for recurring tasks (e.g., "every 24 hours").
-    * **Off-Chain Triggers:** Integration with external systems via webhooks (e.g., a new entry in a Google Sheet or a payment on Stripe).
 * **Action Library:** An expanding library of pre-built integrations:
     * **Stellar Protocol Actions:** Native network functions like "Submit Transaction" or "Manage Trustlines."
-    * **DeFi Protocol Integrations:** High-level abstractions for protocols like "Deposit USDC into Blend" or "Swap XLM for yXLM on Soroswap" [37].
+    * **DeFi Protocol Integrations:** High-level abstractions for protocols like "Deposit USDC into Blend" or "Swap XLM for YXLM on Soroswap" [37].
     * **Smart Contract Management:** Advanced actions such as "Deploy Contract from Template."
 * **Template Marketplace:** A marketplace of pre-built "Flows" for common use cases, such as weekly dollar-cost averaging (DCA) or auto-compounding staking rewards.
 
