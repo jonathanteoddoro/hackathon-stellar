@@ -3,8 +3,6 @@ import { Module } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { FlowController } from './flow.controller';
 import { ScheduleModule } from '@nestjs/schedule';
-import { CronJobTrigger } from 'src/triggers/CronJobTrigger';
-import { HttpTrigger } from 'src/triggers/HttpTrigger';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FlowSchema } from 'src/models/Flow';
 import { FlowNodeSchema } from 'src/models/FlowNode';

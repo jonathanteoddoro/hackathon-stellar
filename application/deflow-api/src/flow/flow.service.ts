@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { ActionNode } from 'src/utils/ActionNode';
 import { LoggerNode } from 'src/utils/LoggerNode';
@@ -19,6 +20,7 @@ import { CreateFlowNodeDto } from './dto/create-flowNode.dto';
 import { LinkNodesDto } from './dto/link-nodes.dto';
 import { PredefinedNodesService } from 'src/predefined-nodes/predefined-nodes.service';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { UpdateNodeDto } from './dto/update-position.dto';
 
 @Injectable()
 export class FlowService {
@@ -53,32 +55,14 @@ export class FlowService {
       throw new Error('Predefined node not found');
     }
 
-    const paramsRequired = predefinedNode.requiredParamsPayloadKeysTypes;
-
-    const params = JSON.parse(createFlowNodeDto.params) as Record<string, any>;
-    for (const key of Object.keys(paramsRequired)) {
-      if (!(key in params)) {
-        throw new Error(`Missing required param: ${key}`);
-      }
-      const expectedType = paramsRequired[key];
-      const actualType = typeof params[key];
-      if (actualType !== expectedType) {
-        throw new Error(
-          `Invalid type for param ${key}: expected ${expectedType}, got ${actualType}`,
-        );
-      }
-    }
-
     const createdFlowNode = new this.flowNodeModel({
       id: uuidv4(),
       flowId,
       name: createFlowNodeDto.name,
       description: createFlowNodeDto.description,
       type: createFlowNodeDto.type,
-      params: createFlowNodeDto.params,
       x: createFlowNodeDto.x,
       y: createFlowNodeDto.y,
-      variables: createFlowNodeDto.variables || {},
     });
     return createdFlowNode.save();
   }
@@ -279,6 +263,76 @@ export class FlowService {
     }
   }
 
+  async deleteNodeFromFlow(nodeId: string, flowId: string): Promise<void> {
+    const node = await this.flowNodeModel.findOne({ id: nodeId, flowId });
+    if (!node) {
+      throw new Error('Node not found in the specified flow');
+    }
+
+    // Remove references from other nodes' successFlow and errorFlow
+    await this.flowNodeModel.updateMany(
+      { flowId },
+      {
+        $pull: {
+          successFlow: node._id,
+          errorFlow: node._id,
+        },
+      },
+    );
+
+    await this.flowNodeModel.deleteOne({ id: nodeId, flowId });
+  }
+
+  async updateNode(
+    nodeId: string,
+    flowId: string,
+    updateNode: UpdateNodeDto,
+  ): Promise<FlowNode> {
+    const node = await this.flowNodeModel.findOne({ id: nodeId, flowId });
+    if (!node) {
+      throw new NotFoundException('Node not found in the specified flow');
+    }
+    if (updateNode.params !== undefined) {
+      const predefinedNode =
+        await this.predefinedNodesService.getPredefinedNodeById(
+          updateNode.predefinedNodeId || '',
+        );
+      if (!predefinedNode) {
+        throw new NotFoundException('Predefined node not found');
+      }
+      const paramsRequired = predefinedNode.requiredParamsPayloadKeysTypes;
+      const params = JSON.parse(updateNode.params) as Record<string, any>;
+      for (const key of Object.keys(paramsRequired)) {
+        if (!(key in params)) {
+          throw new Error(`Missing required param: ${key}`);
+        }
+        const expectedType = paramsRequired[key];
+        if (typeof params[key] !== expectedType) {
+          throw new Error(
+            `Invalid type for param ${key}: expected ${expectedType}, got ${typeof params[
+              key
+            ]}`,
+          );
+        }
+      }
+      node.params = params;
+    }
+    if (updateNode.variables !== undefined) {
+      node.variables = JSON.parse(updateNode.variables) as Record<
+        string,
+        string
+      >;
+    }
+    if (updateNode.x !== undefined) {
+      node.x = updateNode.x;
+    }
+
+    if (updateNode.y !== undefined) {
+      node.y = updateNode.y;
+    }
+
+    return await node.save();
+  }
   async undeployFlow(flowId: string): Promise<void> {
     const triggersNodes = await this.flowNodeModel
       .find({ flowId, type: NodeType.Trigger })

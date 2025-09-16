@@ -1,8 +1,9 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Param, Post, Put } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { CreateFlowNodeDto } from './dto/create-flowNode.dto';
 import { LinkNodesDto } from './dto/link-nodes.dto';
 import { CreateFlowDto } from './dto/create-flow.dto';
+import { UpdateNodeDto } from './dto/update-position.dto';
 
 @Controller('flow')
 export class FlowController {
@@ -28,6 +29,23 @@ export class FlowController {
     @Body() body: CreateFlowNodeDto,
   ) {
     return await this.flowService.addNodeToFlow(body, flowId);
+  }
+
+  @Delete(':flowId/node/:nodeId')
+  async deleteNode(
+    @Param('flowId') flowId: string,
+    @Param('nodeId') nodeId: string,
+  ) {
+    return await this.flowService.deleteNodeFromFlow(nodeId, flowId);
+  }
+
+  @Put(':flowId/node/:nodeId')
+  async updateNode(
+    @Param('flowId') flowId: string,
+    @Param('nodeId') nodeId: string,
+    @Body() updateNode: UpdateNodeDto,
+  ) {
+    return await this.flowService.updateNode(nodeId, flowId, updateNode);
   }
 
   @Post('link-nodes')
