@@ -1,12 +1,34 @@
 import { ActionNode } from '../utils/ActionNode';
 import { NodeMessage } from '../utils/NodeMessage';
+import * as dotenv from 'dotenv';
+
+// Carregar variáveis do arquivo .env
+dotenv.config();
 
 export class ActionBlendLoanReal extends ActionNode {
     name = 'blend-loan-real';
     description = 'Executes real Blend Protocol operations on Stellar Testnet';
     
-    private contractId: string = 'CDGSEWXP4PZS4UWIVJHCR6OETUQK7ZVUKW3UZH375CDEDXYZ63ZACIF3';
-    private userAddress: string = 'GCBTWIV5Z4YDML5S2BIK6F4KPWPSDJWNQJHLPMZ672PKPA26YENI7GUZ';
+    private contractId: string;
+    private userAddress: string;
+    
+    constructor() {
+        super();
+        this.contractId = process.env.STELLAR_CONTRACT_ID || '';
+        this.userAddress = process.env.STELLAR_USER_ADDRESS || '';
+        
+        // Validar se as configurações estão presentes
+        if (!this.contractId) {
+            throw new Error('STELLAR_CONTRACT_ID not configured in .env file');
+        }
+        if (!this.userAddress) {
+            throw new Error('STELLAR_USER_ADDRESS not configured in .env file');
+        }
+        
+        console.log(`🔧 Configurações carregadas do .env:`);
+        console.log(`📝 Contract ID: ${this.contractId}`);
+        console.log(`👤 User Address: ${this.userAddress}`);
+    }
     
     async execute(message: NodeMessage): Promise<NodeMessage> {
         const out = new NodeMessage();
