@@ -31,19 +31,19 @@ export class OpenAINode extends ActionNode {
       temperature: 0.7,
       ...params,
     };
-    
+
     this.client = new OpenAI({
       apiKey: this.params.api_key,
-    });
+    }) as OpenAI;
   }
 
   async execute(message: NodeMessage): Promise<NodeMessage> {
     try {
       console.log(`🤖 OpenAI: Enviando prompt para ${this.params.model}...`);
-      
+
       // Permite usar variáveis do payload na prompt
       let processedPrompt = this.params.prompt;
-      
+
       // Substitui variáveis no formato {{variable}} pelos valores do payload
       if (message.payload) {
         Object.entries(message.payload).forEach(([key, value]) => {
@@ -60,6 +60,11 @@ export class OpenAINode extends ActionNode {
       const completion = await this.client.chat.completions.create({
         model: this.params.model!,
         messages: [
+          {
+            role: 'system',
+            content:
+              'Você é um assistente útil que ajuda os usuários a gerar respostas baseadas em prompts fornecidos.',
+          },
           {
             role: 'user',
             content: processedPrompt,
@@ -91,10 +96,10 @@ export class OpenAINode extends ActionNode {
       };
     } catch (error) {
       console.error('❌ OpenAI: Erro ao processar solicitação:', error);
-      
+
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
-      
+
       return {
         ...message,
         payload: {

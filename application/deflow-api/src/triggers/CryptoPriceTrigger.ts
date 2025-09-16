@@ -33,7 +33,9 @@ class ReflectorClient {
   constructor(sourceSecret?: string) {
     this.contract = new Contract(CONTRACT_ID);
     this.server = new rpc.Server(RPC_URL, { allowHttp: false });
-    this.sourceSecret = sourceSecret || 'SCZANGBA5YHTNYVVV4C3U252E2B6P6F5T3U6MM63WBSBZATAQI3EBTQ4';
+    this.sourceSecret =
+      sourceSecret ||
+      'SCZANGBA5YHTNYVVV4C3U252E2B6P6F5T3U6MM63WBSBZATAQI3EBTQ4';
   }
 
   async getLastPrice(assetCode: string): Promise<PriceResult | null> {
@@ -44,14 +46,17 @@ class ReflectorClient {
 
       const assetScVal = xdr.ScVal.scvVec([
         xdr.ScVal.scvSymbol('Other'),
-        xdr.ScVal.scvSymbol(assetCode.toUpperCase())
+        xdr.ScVal.scvSymbol(assetCode.toUpperCase()),
       ]);
 
       const operation = this.contract.call('lastprice', assetScVal);
       const transaction = new TransactionBuilder(account, {
         fee: '100',
         networkPassphrase: NETWORK_PASSPHRASE,
-      }).addOperation(operation).setTimeout(30).build();
+      })
+        .addOperation(operation)
+        .setTimeout(30)
+        .build();
 
       const simulation = await this.server.simulateTransaction(transaction);
 
@@ -63,7 +68,10 @@ class ReflectorClient {
         throw new Error('No return value from simulation');
       }
 
-      const result = scValToNative(simulation.result.retval);
+      const result = scValToNative(simulation.result.retval) as unknown as {
+        price: string;
+        timestamp: string;
+      };
 
       if (!result.price || !result.timestamp) {
         throw new Error('Invalid price data format');
@@ -74,10 +82,11 @@ class ReflectorClient {
 
       return {
         price,
-        timestamp
+        timestamp,
       };
-
-    } catch (error: any) {
+    } catch (error: unknown) {
+      void error;
+      console.error('Error fetching price from Reflector:', error);
       return null;
     }
   }
@@ -86,29 +95,37 @@ class ReflectorClient {
 export class CryptoPriceTrigger extends TriggerNode {
   name = 'CryptoPriceTrigger';
   description = 'Trigger que dispara quando preço de criptomoeda atinge limite';
-  private params: { asset: string; limitPrice: string; sourceSecret?: string };
+  private params: {
+    asset: string;
+    limitPrice: string;
+    sourceSecret?: string;
+    condition: string;
+  };
   isJobTrigger = true;
-  
+
   private reflectorClient: ReflectorClient;
 
   constructor(params: { [key: string]: string } = {}) {
     super();
-    
-    if (!params.asset || !params.limitPrice) {
-      throw new Error('Parameters "asset" and "limitPrice" are required for CryptoPriceTrigger');
+
+    if (!params.asset || !params.limitPrice || !params.condition) {
+      throw new Error(
+        'Parameters "asset", "limitPrice" and "condition" are required for CryptoPriceTrigger',
+      );
     }
-    
+
     const limitPrice = parseFloat(params.limitPrice);
     if (isNaN(limitPrice) || limitPrice <= 0) {
       throw new Error('Parameter "limitPrice" must be a positive number');
     }
 
-    this.params = { 
-      asset: params.asset.toUpperCase(), 
+    this.params = {
+      asset: params.asset.toUpperCase(),
       limitPrice: params.limitPrice,
-      sourceSecret: params.sourceSecret // Parâmetro opcional
+      sourceSecret: params.sourceSecret, // Parâmetro opcional
+      condition: params.condition, // 'above' ou 'below'
     };
-    
+
     this.reflectorClient = new ReflectorClient(this.params.sourceSecret);
   }
 
@@ -119,7 +136,7 @@ export class CryptoPriceTrigger extends TriggerNode {
         conditionMet: true,
         asset: this.params.asset,
         limitPrice: parseFloat(this.params.limitPrice),
-        triggeredAt: new Date().toISOString()
+        triggeredAt: new Date().toISOString(),
       },
       metadata: {
         triggerId: 'crypto-price-trigger',
@@ -132,31 +149,45 @@ export class CryptoPriceTrigger extends TriggerNode {
   execute(
     callback: (...args: any[]) => void,
     nodeId: string,
+    flowId: string,
   ): { jobName: string; job: CronJob } {
     const jobName = `crypto-price-${nodeId}`;
     const limitPrice = parseFloat(this.params.limitPrice);
-    
-    // Polling a cada 5 minutos (fixo)
+
     const job = new CronJob(
-      '*/5 * * * *', // A cada 5 minutos
+      '*/30 * * * * *', // A cada 30 segundos
       async () => {
         try {
-          const priceResult = await this.reflectorClient.getLastPrice(this.params.asset);
-          
-          if (priceResult && priceResult.price >= limitPrice) {
+          const priceResult = await this.reflectorClient.getLastPrice(
+            this.params.asset,
+          );
+          if (
+            this.params.condition === 'gt' &&
+            priceResult &&
+            priceResult.price <= limitPrice
+          ) {
             // Condição atendida - disparar callback
             const message = this.validatePayload({
               currentPrice: priceResult.price,
               percentOfLimit: (priceResult.price / limitPrice) * 100,
-              priceTimestamp: priceResult.timestamp
+              priceTimestamp: priceResult.timestamp,
             });
-            
+            callback(message, nodeId, flowId);
+          } else if (
+            this.params.condition === 'lt' &&
+            priceResult &&
+            priceResult.price >= limitPrice
+          ) {
+            // Condição atendida - disparar callback
+            const message = this.validatePayload({
+              currentPrice: priceResult.price,
+              percentOfLimit: (priceResult.price / limitPrice) * 100,
+              priceTimestamp: priceResult.timestamp,
+            });
             callback(message, nodeId);
-            
-            // Parar o job após disparar
-            job.stop();
           }
         } catch (error) {
+          void error;
           // Continua tentando em caso de erro
         }
       },
@@ -164,9 +195,7 @@ export class CryptoPriceTrigger extends TriggerNode {
       true,
       'UTC',
     );
-    
+
     return { jobName, job };
   }
 }
-
-export default CryptoPriceTrigger;

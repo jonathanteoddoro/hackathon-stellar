@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -60,11 +61,31 @@ export class FlowService {
       flowId,
       name: createFlowNodeDto.name,
       description: createFlowNodeDto.description,
+      predefinedNodeId: createFlowNodeDto.predefinedNodeId,
       type: createFlowNodeDto.type,
       x: createFlowNodeDto.x,
       y: createFlowNodeDto.y,
     });
     return createdFlowNode.save();
+  }
+
+  async getAllFlows(): Promise<Flow[]> {
+    return this.flowModel.find().exec();
+  }
+
+  async getFlowByIdAndNodes(
+    flowId: string,
+  ): Promise<Flow & { nodes: FlowNode[] }> {
+    const flow = await this.flowModel.findOne({ id: flowId }).exec();
+    if (!flow) {
+      throw new NotFoundException('Flow not found');
+    }
+    const nodes = await this.flowNodeModel
+      .find({ flowId })
+      .populate('successFlow')
+      .populate('errorFlow')
+      .exec();
+    return { ...flow.toObject(), nodes };
   }
 
   async linkNodes(linkNodesDto: LinkNodesDto): Promise<void> {
@@ -125,28 +146,43 @@ export class FlowService {
     triggerNodeId: string,
     flowId: string,
   ): Promise<void> {
-    const currentNode = await this.flowNodeModel
+    const triggerNode = await this.flowNodeModel
       .findOne({ id: triggerNodeId })
       .populate('successFlow')
       .populate('errorFlow')
       .exec();
-    if (!currentNode) {
+    if (!triggerNode) {
       throw new Error('Trigger node not found');
     }
-    if (currentNode.type !== NodeType.Trigger) {
+    if (triggerNode.type !== NodeType.Trigger) {
       throw new Error('Node is not a trigger node');
     }
-    if (!currentNode.successFlow || currentNode.successFlow.length === 0) {
+    if (!triggerNode.successFlow || triggerNode.successFlow.length === 0) {
       throw new Error('Trigger node has no success flow defined');
     }
-    if (currentNode.flowId !== flowId) {
+    if (triggerNode.flowId !== flowId) {
       throw new Error('Trigger node does not belong to the specified flow');
     }
     let currentMessage: NodeMessage | null = null;
-    const queue: FlowNode[] = [currentNode];
+    const queue: string[] = [triggerNode.id as string];
+    const processedNodes = new Set<string>();
+
     while (queue.length > 0) {
-      const currentNode = queue.shift();
-      if (!currentNode) continue;
+      const nodeId = queue.shift();
+      if (!nodeId || processedNodes.has(nodeId)) continue;
+
+      processedNodes.add(nodeId);
+
+      const currentNode = await this.flowNodeModel
+        .findOne({ id: nodeId })
+        .populate('successFlow')
+        .populate('errorFlow')
+        .exec();
+
+      if (!currentNode) {
+        this.logger.warn(`Node with id ${nodeId} not found, skipping...`);
+        continue;
+      }
 
       const params = currentNode.params || {};
       // substituindo variaveis no formato {{varName}} pelos valores do payload
@@ -178,7 +214,16 @@ export class FlowService {
       const nodeInstance = NodeFactory.create(currentNode.name, params);
       if (nodeInstance instanceof TriggerNode) {
         currentMessage = nodeInstance.validatePayload(triggerPayload);
-        queue.push(...currentNode.successFlow);
+        // Add success flow node IDs to queue
+        for (const successNode of currentNode.successFlow) {
+          if (
+            successNode &&
+            typeof successNode === 'object' &&
+            'id' in successNode
+          ) {
+            queue.push(successNode.id);
+          }
+        }
       } else if (nodeInstance instanceof ActionNode) {
         try {
           currentMessage = await nodeInstance.execute(currentMessage!);
@@ -186,7 +231,16 @@ export class FlowService {
             `Action Node [${nodeInstance.name}] executed successfully.`,
           );
 
-          queue.push(...currentNode.successFlow);
+          // Add success flow node IDs to queue
+          for (const successNode of currentNode.successFlow) {
+            if (
+              successNode &&
+              typeof successNode === 'object' &&
+              'id' in successNode
+            ) {
+              queue.push(successNode.id);
+            }
+          }
         } catch (error) {
           this.logger.error(
             `Action Node [${nodeInstance.name}] execution failed, processing error flow.`,
@@ -202,7 +256,18 @@ export class FlowService {
                 (error as Error)?.message || 'Unknown error',
             },
           };
-          if (currentNode.errorFlow) queue.push(...currentNode.errorFlow);
+          // Add error flow node IDs to queue
+          if (currentNode.errorFlow) {
+            for (const errorNode of currentNode.errorFlow) {
+              if (
+                errorNode &&
+                typeof errorNode === 'object' &&
+                'id' in errorNode
+              ) {
+                queue.push(errorNode.id);
+              }
+            }
+          }
         }
       } else if (nodeInstance instanceof LoggerNode) {
         if (currentMessage) {
@@ -232,8 +297,9 @@ export class FlowService {
         try {
           if (nodeInstance.execute) {
             const { jobName, job } = nodeInstance.execute(
-              this.executeFlow.bind(this),
+              this.executeFlow.bind(this) as (...args: any[]) => void,
               triggerNode.get('id'),
+              triggerNode.get('flowId'),
             );
             if (this.schedulerRegistry.doesExist('cron', jobName)) {
               this.logger.log(
@@ -293,9 +359,14 @@ export class FlowService {
       throw new NotFoundException('Node not found in the specified flow');
     }
     if (updateNode.params !== undefined) {
+      if (!node.predefinedNodeId) {
+        throw new BadRequestException(
+          'predefinedNodeId is required when updating params',
+        );
+      }
       const predefinedNode =
         await this.predefinedNodesService.getPredefinedNodeById(
-          updateNode.predefinedNodeId || '',
+          node.predefinedNodeId,
         );
       if (!predefinedNode) {
         throw new NotFoundException('Predefined node not found');
@@ -304,11 +375,15 @@ export class FlowService {
       const params = JSON.parse(updateNode.params) as Record<string, any>;
       for (const key of Object.keys(paramsRequired)) {
         if (!(key in params)) {
-          throw new Error(`Missing required param: ${key}`);
+          this.logger.error(`Missing required param: ${key} in node ${nodeId}`);
+          throw new BadRequestException(`Missing required param: ${key}`);
         }
         const expectedType = paramsRequired[key];
         if (typeof params[key] !== expectedType) {
-          throw new Error(
+          this.logger.error(
+            `Invalid type for param ${key} in node ${nodeId}: expected ${expectedType}, got ${typeof params[key]}`,
+          );
+          throw new BadRequestException(
             `Invalid type for param ${key}: expected ${expectedType}, got ${typeof params[
               key
             ]}`,
@@ -372,6 +447,9 @@ export class FlowService {
   }
 
   private extractVariables(value: string, payload: object): string {
+    if (typeof value !== 'string') {
+      return value;
+    }
     const varMatches = value.matchAll(/{{(.*?)}}/g);
     let finalValue = value;
 
@@ -393,7 +471,7 @@ export class FlowService {
           }
         }
         if (varValue !== undefined) {
-          finalValue = finalValue.replace(match[0], varValue);
+          finalValue = finalValue.replace(match[0], String(varValue));
         }
       }
     }

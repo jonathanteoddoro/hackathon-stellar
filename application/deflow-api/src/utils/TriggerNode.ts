@@ -10,5 +10,6 @@ export abstract class TriggerNode {
   abstract execute?(
     callback: (...args: any[]) => void,
     nodeId: string,
+    flowId: string,
   ): { jobName: string; job: CronJob };
 }

@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Param, Post, Put } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { CreateFlowNodeDto } from './dto/create-flowNode.dto';
 import { LinkNodesDto } from './dto/link-nodes.dto';
@@ -12,6 +21,16 @@ export class FlowController {
   @Post()
   async createFlow(@Body() body: CreateFlowDto) {
     return await this.flowService.createFlow(body);
+  }
+
+  @Get()
+  async getAllFlows() {
+    return await this.flowService.getAllFlows();
+  }
+
+  @Get(':flowId')
+  async getFlowByIdAndNodes(@Param('flowId') flowId: string) {
+    return await this.flowService.getFlowByIdAndNodes(flowId);
   }
 
   @Post(':flowId/trigger/:triggerId')
@@ -60,8 +79,8 @@ export class FlowController {
 
   @Post(':flowId/deploy')
   async deploy(@Param('flowId') flowId: string) {
-    if (flowId) {
-      throw new Error('triggerId and flowId are required');
+    if (!flowId) {
+      throw new BadRequestException('flowId are required');
     }
 
     return await this.flowService.deployFlow(flowId);

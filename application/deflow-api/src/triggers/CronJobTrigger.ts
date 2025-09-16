@@ -45,15 +45,17 @@ export class CronJobTrigger extends TriggerNode {
   execute(
     callback: (...args: any[]) => void,
     nodeId: string,
+    flowId: string,
   ): { jobName: string; job: CronJob } {
     // default execute: start a generic cron job (no specific triggerId)
-    return this.startFor(callback, nodeId);
+    return this.startFor(callback, nodeId, flowId);
   }
 
   // Start job for a specific deployed triggerId (distinct per deployment)
   private startFor(
     callback: (...args: any[]) => void,
     nodeId: string,
+    flowId: string,
   ): { jobName: string; job: CronJob } {
     if (!this.params || !this.params.time) {
       throw new Error('Parameter "time" is required for CronJobTrigger');
@@ -67,7 +69,7 @@ export class CronJobTrigger extends TriggerNode {
           triggerType: 'cron',
           timestamp: new Date().toISOString(),
         });
-        callback(message, nodeId);
+        callback(message, nodeId, flowId);
       },
       null,
       true,

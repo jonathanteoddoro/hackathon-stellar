@@ -3,7 +3,7 @@ import { NodeMessage } from 'src/utils/NodeMessage';
 import { CronJob } from 'cron';
 
 export class HttpTrigger extends TriggerNode {
-  name = 'HTTPTrigger';
+  name = 'HttpTrigger';
   description = 'Trigger ativado via requisição HTTP';
   isJobTrigger = false;
 

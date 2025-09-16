@@ -7,8 +7,9 @@ import { TransactionNode } from '../actions/TransactionNode';
 import { OpenAINode } from '../actions/OpenAINode';
 import { WhatsAppLogger } from '../loggers/WhatsAppLogger';
 import { EmailLogger } from '../loggers/EmailLogger';
-import { v4 as uuidv4 } from 'uuid';
 import { NodeType } from '../utils/NodeType';
+import { HttpTrigger } from 'src/triggers/HttpTrigger';
+import { CryptoPriceTrigger } from 'src/triggers/CryptoPriceTrigger';
 
 @Injectable()
 export class SeederService {
@@ -42,10 +43,19 @@ export class SeederService {
       messageText: 'MOCK',
     });
     const emailLogger = new EmailLogger({ from: 'MOCK', to: 'MOCK' });
+    const httpTrigger = new HttpTrigger({
+      teste: 'MOCK',
+    });
+    const reflectorTrigger = new CryptoPriceTrigger({
+      asset: 'MOCK',
+      limitPrice: '2.0',
+      sourceSecret: 'above',
+      condition: '60',
+    });
 
     const predefinedNodes: Omit<PredefinedNode, '_id'>[] = [
       {
-        id: uuidv4(),
+        id: swapNode.name,
         name: swapNode.name,
         description: swapNode.description,
         requiredParamsPayloadKeysTypes: { user_secret: 'string' },
@@ -53,7 +63,7 @@ export class SeederService {
         type: NodeType.Action,
       },
       {
-        id: uuidv4(),
+        id: transactionNode.name,
         name: transactionNode.name,
         description: transactionNode.description,
         requiredParamsPayloadKeysTypes: {
@@ -73,7 +83,7 @@ export class SeederService {
         type: NodeType.Action,
       },
       {
-        id: uuidv4(),
+        id: whatsAppLogger.name,
         name: whatsAppLogger.name,
         description: whatsAppLogger.description,
         requiredParamsPayloadKeysTypes: {
@@ -84,15 +94,22 @@ export class SeederService {
         type: NodeType.Logger,
       },
       {
-        id: uuidv4(),
+        id: emailLogger.name,
         name: emailLogger.name,
         description: emailLogger.description,
-        requiredParamsPayloadKeysTypes: { from: 'string', to: 'string' },
+        requiredParamsPayloadKeysTypes: {
+          from: 'string',
+          to: 'string',
+          message: 'string',
+          subject: 'string',
+          user: 'string',
+          pass: 'string',
+        },
         outputPayloadKeysTypes: { messageId: 'string', status: 'string' },
         type: NodeType.Logger,
       },
       {
-        id: uuidv4(),
+        id: openAINode.name,
         name: openAINode.name,
         description: openAINode.description,
         requiredParamsPayloadKeysTypes: {
@@ -109,6 +126,32 @@ export class SeederService {
         },
         type: NodeType.Action,
       },
+      {
+        id: httpTrigger.name,
+        name: httpTrigger.name,
+        description: httpTrigger.description,
+        requiredParamsPayloadKeysTypes: {},
+        outputPayloadKeysTypes: { payload: 'object' },
+        type: NodeType.Trigger,
+      },
+      {
+        id: reflectorTrigger.name,
+        name: reflectorTrigger.name,
+        description: reflectorTrigger.description,
+        requiredParamsPayloadKeysTypes: {
+          asset: 'string',
+          limitPrice: 'string',
+          sourceSecret: 'string',
+          condition: 'string',
+        },
+        outputPayloadKeysTypes: {
+          conditionMet: 'boolean',
+          asset: 'string',
+          currentPrice: 'number',
+          timestamp: 'number',
+        },
+        type: NodeType.Trigger,
+      },
       // Adicione outros nós aqui...
     ];
 
@@ -116,7 +159,14 @@ export class SeederService {
     for (const node of predefinedNodes) {
       await this.predefinedNodeModel.updateOne(
         { name: node.name },
-        node as any,
+        {
+          name: node.name,
+          description: node.description,
+          requiredParamsPayloadKeysTypes: node.requiredParamsPayloadKeysTypes,
+          outputPayloadKeysTypes: node.outputPayloadKeysTypes,
+          type: node.type,
+          id: node.id,
+        },
         {
           upsert: true,
         },

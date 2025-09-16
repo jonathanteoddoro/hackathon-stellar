@@ -44,7 +44,7 @@ class NodemailerTransporter {
   ): Promise<{ success: boolean; messageId: string }> {
     try {
       console.log(`📧 Enviando email para ${options.to}...`);
-      
+
       const info: SentMessageInfo = await this.transporter.sendMail({
         from: options.from,
         to: options.to,
@@ -54,7 +54,7 @@ class NodemailerTransporter {
       });
 
       console.log(`Email enviado com sucesso! ID: ${info.messageId}`);
-      
+
       return {
         success: true,
         messageId: info.messageId,
@@ -63,7 +63,7 @@ class NodemailerTransporter {
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido';
       console.error(`❌ Erro ao enviar email: ${errorMessage}`);
-      
+
       return {
         success: false,
         messageId: `error-${Date.now()}`,
@@ -97,11 +97,9 @@ export class EmailLogger extends LoggerNode {
   async log(message: NodeMessage): Promise<void> {
     try {
       const metadata = message.metadata as EmailMetadata;
-      const subject = metadata?.subject || this.defaultSubject || 'Notificação do Sistema';
-      const messageBody = 
-        metadata?.message || 
-        this.defaultMessage || 
-        `Nova mensagem: ${JSON.stringify(message.payload)}`;
+      const subject =
+        metadata?.subject || this.defaultSubject || 'Notificação do Sistema';
+      const messageBody = this.defaultMessage;
 
       const htmlMessage = `
         <h2>${subject}</h2>
@@ -123,14 +121,17 @@ export class EmailLogger extends LoggerNode {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      
+
       if (result.success) {
-        console.log(`📧 EmailLogger: Email enviado com sucesso para ${this.to}`);
+        console.log(
+          `📧 EmailLogger: Email enviado com sucesso para ${this.to}`,
+        );
       } else {
         console.error(`❌ EmailLogger: Falha ao enviar email para ${this.to}`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
       console.error(`❌ EmailLogger: Erro inesperado: ${errorMessage}`);
     }
   }

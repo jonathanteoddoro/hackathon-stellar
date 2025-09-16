@@ -30,6 +30,11 @@ export class FlowNode {
   successFlow: FlowNode[];
 
   @Prop({
+    required: true,
+  })
+  predefinedNodeId: string;
+
+  @Prop({
     required: false,
     type: [
       {

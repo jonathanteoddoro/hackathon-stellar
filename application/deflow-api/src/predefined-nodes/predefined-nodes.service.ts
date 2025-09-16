@@ -27,7 +27,9 @@ export class PredefinedNodesService {
   }
 
   async getPredefinedNodeById(id: string): Promise<PredefinedNode> {
+    console.log(`Fetching predefined node with id: ${id}`);
     const node = await this.predefinedNodeModel.findOne({ id }).exec();
+    console.log('Fetched predefined node:', node);
     if (!node) {
       throw new NotFoundException('Predefined node not found');
     }
