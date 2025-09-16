@@ -44,14 +44,21 @@ export async function registerNodes() {
       try {
         files = fs.readdirSync(dirPath);
       } catch (e) {
-        logger.warn(`Falha ao ler diretório: ${dirPath} - ${(e as Error).message}`);
+        logger.warn(
+          `Falha ao ler diretório: ${dirPath} - ${(e as Error).message}`,
+        );
         continue;
       }
 
       for (const file of files) {
         const ext = path.extname(file).toLowerCase();
         if (!['.js', '.ts'].includes(ext)) continue;
-        if (file.endsWith('.spec.ts') || file.endsWith('.d.ts') || file.endsWith('.map')) continue;
+        if (
+          file.endsWith('.spec.ts') ||
+          file.endsWith('.d.ts') ||
+          file.endsWith('.map')
+        )
+          continue;
 
         const modulePath = path.join(dirPath, file);
         const moduleName = path.basename(file, ext);
@@ -60,7 +67,8 @@ export async function registerNodes() {
           // On Windows the ESM loader requires file:// URLs for absolute paths
           const moduleUrl = pathToFileURL(modulePath).href;
           const mod = (await import(moduleUrl)) as Record<string, unknown>;
-          const NodeClass = (mod[moduleName] ?? (mod as any).default) as unknown;
+          const NodeClass = (mod[moduleName] ??
+            (mod as unknown as { default: any }).default) as unknown;
 
           if (NodeClass && typeof NodeClass === 'function') {
             NodeFactory.register(
@@ -68,12 +76,19 @@ export async function registerNodes() {
               NodeClass as new (params: object) => BaseNode,
               category,
             );
-            logger.log(`Nó '${moduleName}' registrado na categoria '${category}'.`);
+            logger.log(
+              `Nó '${moduleName}' registrado na categoria '${category}'.`,
+            );
           } else {
-            logger.debug(`Export '${moduleName}' não encontrado em ${modulePath}`);
+            logger.debug(
+              `Export '${moduleName}' não encontrado em ${modulePath}`,
+            );
           }
         } catch (e) {
-          logger.error(`Erro ao importar ou registrar o nó ${moduleName}:`, (e as Error).stack ?? e);
+          logger.error(
+            `Erro ao importar ou registrar o nó ${moduleName}:`,
+            (e as Error).stack ?? e,
+          );
           // continue processing other files instead of aborting startup
         }
       }

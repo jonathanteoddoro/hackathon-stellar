@@ -5,7 +5,7 @@ import { PredefinedNode } from '../models/PredefinedNodes';
 import { SwapNode } from '../actions/SwapNode';
 import { TransactionNode } from '../actions/TransactionNode';
 import { WhatsAppLogger } from '../loggers/WhatsAppLogger';
-import { LoggerTemplate as EmailLogger } from '../loggers/EmailLogger';
+import { EmailLogger } from '../loggers/EmailLogger';
 import { v4 as uuidv4 } from 'uuid';
 import { NodeType } from '../utils/NodeType';
 

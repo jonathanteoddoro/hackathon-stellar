@@ -1,8 +1,8 @@
 import { LoggerNode } from 'src/utils/LoggerNode';
 import { NodeMessage } from '../utils/NodeMessage';
 
-export class LoggerTemplate extends LoggerNode {
-  name = 'LoggerTemplate';
+export class EmailLogger extends LoggerNode {
+  name = 'EmailLogger';
   description = 'A template for creating new logger nodes';
   private transporter: any;
   private from: string;
