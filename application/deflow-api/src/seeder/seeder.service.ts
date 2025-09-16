@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { PredefinedNode } from '../models/PredefinedNodes';
 import { SwapNode } from '../actions/SwapNode';
 import { TransactionNode } from '../actions/TransactionNode';
+import { OpenAINode } from '../actions/OpenAINode';
 import { WhatsAppLogger } from '../loggers/WhatsAppLogger';
 import { EmailLogger } from '../loggers/EmailLogger';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,11 +22,17 @@ export class SeederService {
   async seed() {
     this.logger.log('Starting to seed predefined nodes...');
 
-    const swapNode = new SwapNode({ user_secret: 'MOCK' });
+    const swapNode = new SwapNode({
+      user_secret: 'MOCK',
+    });
     const transactionNode = new TransactionNode({
       user_secret: 'MOCK',
       destination: 'MOCK',
       amount: 'MOCK',
+    });
+    const openAINode = new OpenAINode({
+      api_key: 'MOCK',
+      prompt: 'MOCK',
     });
     const whatsAppLogger = new WhatsAppLogger({
       toNumber: 'MOCK',
@@ -80,6 +87,24 @@ export class SeederService {
         requiredParamsPayloadKeysTypes: { from: 'string', to: 'string' },
         outputPayloadKeysTypes: { messageId: 'string', status: 'string' },
         type: NodeType.Logger,
+      },
+      {
+        id: uuidv4(),
+        name: openAINode.name,
+        description: openAINode.description,
+        requiredParamsPayloadKeysTypes: {
+          api_key: 'string',
+          prompt: 'string',
+          model: 'string',
+          max_tokens: 'number',
+          temperature: 'number',
+        },
+        outputPayloadKeysTypes: {
+          openai_response: 'string',
+          openai_usage: 'object',
+          openai_model: 'string',
+        },
+        type: NodeType.Action,
       },
       // Adicione outros nós aqui...
     ];

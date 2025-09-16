@@ -1,74 +1,142 @@
 import { LoggerNode } from 'src/utils/LoggerNode';
 import { NodeMessage } from '../utils/NodeMessage';
 
-export class EmailLogger extends LoggerNode {
-  name = 'EmailLogger';
-  description = 'A template for creating new logger nodes';
-  private transporter: any;
-  private from: string;
-  private to: string;
+const nodemailer = require('nodemailer');
 
-  constructor(params: Record<string, string>) {
-    super();
-    this.transporter = params['transporter'];
-    this.from = params['from'];
-    this.to = params['to'];
+interface MailOptions {
+  subject: string;
+  text: string;
+  html: string;
+  from: string;
+  to: string;
+}
+
+interface EmailMetadata {
+  subject?: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
+interface SentMessageInfo {
+  messageId: string;
+  [key: string]: unknown;
+}
+
+interface Transporter {
+  sendMail(options: MailOptions): Promise<SentMessageInfo>;
+}
+
+class NodemailerTransporter {
+  private transporter: Transporter;
+
+  constructor(user: string, pass: string) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user,
+        pass,
+      },
+    });
   }
 
-  async execute(message: NodeMessage): Promise<NodeMessage> {
-    const subject = message.metadata?.subject || `Log: ${this.name}`;
-    const body = this.renderBody(message);
-
-    const out = new NodeMessage();
-
+  async sendMail(
+    options: MailOptions,
+  ): Promise<{ success: boolean; messageId: string }> {
     try {
-      const mailOptions: any = {
-        subject,
-        text: body.text,
-        html: body.html,
+      console.log(`📧 Enviando email para ${options.to}...`);
+      
+      const info: SentMessageInfo = await this.transporter.sendMail({
+        from: options.from,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+      });
+
+      console.log(`Email enviado com sucesso! ID: ${info.messageId}`);
+      
+      return {
+        success: true,
+        messageId: info.messageId,
       };
-
-      if (this.from) mailOptions.from = this.from;
-      if (this.to) mailOptions.to = this.to;
-
-      const info = await this.transporter.sendMail(mailOptions);
-
-      out.payload = { success: true, info };
-      return out;
-    } catch (err) {
-      out.payload = {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error(`❌ Erro ao enviar email: ${errorMessage}`);
+      
+      return {
         success: false,
-        error: err instanceof Error ? err.message : String(err),
+        messageId: `error-${Date.now()}`,
       };
-      return out;
+    }
+  }
+}
+
+export class EmailLogger extends LoggerNode {
+  name = 'EmailLogger';
+  description =
+    'Logger que envia notificações por email com assunto e mensagem personalizáveis';
+  private transporter: NodemailerTransporter;
+  private from: string;
+  private to: string;
+  private defaultSubject?: string;
+  private defaultMessage?: string;
+
+  constructor(params: Record<string, unknown>) {
+    super();
+    const user = params['user'] as string;
+    const pass = params['pass'] as string;
+
+    this.transporter = new NodemailerTransporter(user, pass);
+    this.from = params['from'] as string;
+    this.to = params['to'] as string;
+    this.defaultSubject = params['subject'] as string | undefined;
+    this.defaultMessage = params['message'] as string | undefined;
+  }
+
+  async log(message: NodeMessage): Promise<void> {
+    try {
+      const metadata = message.metadata as EmailMetadata;
+      const subject = metadata?.subject || this.defaultSubject || 'Notificação do Sistema';
+      const messageBody = 
+        metadata?.message || 
+        this.defaultMessage || 
+        `Nova mensagem: ${JSON.stringify(message.payload)}`;
+
+      const htmlMessage = `
+        <h2>${subject}</h2>
+        <p><strong>Timestamp:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+        <p><strong>Mensagem:</strong> ${messageBody}</p>
+        <hr>
+        <details>
+          <summary>Dados completos da mensagem</summary>
+          <pre>${JSON.stringify(message, null, 2)}</pre>
+        </details>
+      `;
+
+      const mailOptions: MailOptions = {
+        from: this.from,
+        to: this.to,
+        subject: subject,
+        text: `${subject}\n\nTimestamp: ${new Date().toLocaleString('pt-BR')}\nMensagem: ${messageBody}\n\nDados: ${JSON.stringify(message, null, 2)}`,
+        html: htmlMessage,
+      };
+
+      const result = await this.transporter.sendMail(mailOptions);
+      
+      if (result.success) {
+        console.log(`📧 EmailLogger: Email enviado com sucesso para ${this.to}`);
+      } else {
+        console.error(`❌ EmailLogger: Falha ao enviar email para ${this.to}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      console.error(`❌ EmailLogger: Erro inesperado: ${errorMessage}`);
     }
   }
 
-  private renderBody(message: NodeMessage) {
-    const payload = message.payload
-      ? JSON.stringify(message.payload, null, 2)
-      : '';
-    const metadata = message.metadata
-      ? JSON.stringify(message.metadata, null, 2)
-      : '';
-
-    const text = `Payload:\n${payload}\n\nMetadata:\n${metadata}`;
-    const html = `<h3>Payload</h3><pre>${this.escapeHtml(payload)}</pre><h3>Metadata</h3><pre>${this.escapeHtml(metadata)}</pre>`;
-
-    return { text, html };
-  }
-
-  private escapeHtml(str: string) {
-    return str.replace(
-      /[&<>"']/g,
-      (c) =>
-        ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;',
-        })[c] as string,
-    );
+  async execute(message: NodeMessage): Promise<NodeMessage> {
+    await this.log(message);
+    return message; // Passa a mensagem adiante
   }
 }
