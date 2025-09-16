@@ -13,6 +13,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "run:email-logger": "ts-node --transpile-only -r tsconfig-paths/register scripts/run-email-logger.ts",
+    "run:whatsapp-logger": "ts-node --transpile-only -r tsconfig-paths/register scripts/run-whatsapp-logger.ts",
     "run:make-transaction": "ts-node --transpile-only -r tsconfig-paths/register src/actions/makeTransaction.ts",
     "run:get-payments": "ts-node --transpile-only -r tsconfig-paths/register src/actions/getPayments.ts",
     "run:get-balance": "ts-node --transpile-only -r tsconfig-paths/register src/actions/ActionGetBalance.ts",

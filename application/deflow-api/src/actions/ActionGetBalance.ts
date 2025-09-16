@@ -10,7 +10,7 @@ export class ActionGetBalance extends ActionNode {
     
     // Validar se temos uma carteira no payload
     if (!payload.walletAddress && !payload.publicKey) {
-      console.error('❌ Campo "walletAddress" ou "publicKey" é obrigatório no payload');
+      console.error('Campo "walletAddress" ou "publicKey" é obrigatório no payload');
       
       return {
         payload: {
