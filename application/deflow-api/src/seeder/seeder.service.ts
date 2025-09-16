@@ -24,6 +24,9 @@ export class SeederService {
 
     const swapNode = new SwapNode({
       user_secret: 'MOCK',
+      amount: '1',
+      fromToken: 'XLM',
+      toToken: 'USDC',
     });
     const transactionNode = new TransactionNode({
       user_secret: 'MOCK',
