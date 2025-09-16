@@ -14,8 +14,6 @@ import { PredefinedNodesModule } from './predefined-nodes/predefined-nodes.modul
       useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_URI'),
         dbName: configService.get<string>('MONGODB_DB_NAME'),
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
       }),
       inject: [ConfigService],
     }),

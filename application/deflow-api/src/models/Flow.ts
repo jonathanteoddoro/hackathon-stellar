@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema()
 export class Flow {
@@ -11,3 +11,5 @@ export class Flow {
   @Prop({ required: true })
   description: string;
 }
+
+export const FlowSchema = SchemaFactory.createForClass(Flow);

@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { NodeType } from 'src/utils/NodeType';
 
@@ -18,10 +18,10 @@ export class PredefinedNode {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Object })
   requiredParamsPayloadKeysTypes: { [key: string]: string };
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Object })
   outputPayloadKeysTypes: { [key: string]: string };
 
   @Prop({
@@ -30,3 +30,6 @@ export class PredefinedNode {
   })
   type: NodeType;
 }
+
+export const PredefinedNodeSchema =
+  SchemaFactory.createForClass(PredefinedNode);

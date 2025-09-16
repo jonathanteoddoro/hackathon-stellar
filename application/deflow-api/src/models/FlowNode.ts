@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { NodeType } from '../utils/NodeType';
 import mongoose, { HydratedDocument } from 'mongoose';
 
@@ -52,9 +52,15 @@ export class FlowNode {
   @Prop({ required: true })
   description: string;
 
-  @Prop()
+  @Prop({
+    type: Object,
+  })
   params: Record<string, string>;
 
-  @Prop()
+  @Prop({
+    type: Object,
+  })
   variables?: Record<string, string>;
 }
+
+export const FlowNodeSchema = SchemaFactory.createForClass(FlowNode);
