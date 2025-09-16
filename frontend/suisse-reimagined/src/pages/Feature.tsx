@@ -22,6 +22,12 @@ import {
   Settings,
 } from "lucide-react";
 import DotPattern from "../components/dot-pattern";
+import { NodeParameterForm } from "../components/NodeParameterForm";
+import { NodeVariablesForm } from "../components/NodeVariablesForm";
+
+// API Configuration
+const API_BASE_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 
 // Three mocked nodes per category
 // NodeType is string to allow dynamic node types fetched from an API (prefixed with `api_...`)
@@ -282,7 +288,7 @@ function SidebarCard({
       onDragStart={handleDragStart}
       className={`${
         square
-          ? "h-24 p-2 grid place-items-center overflow-hidden"
+          ? "h-24 p-2 grid place-items-center"
           : "flex items-center gap-3 px-4 py-3"
       } rounded-lg border border-white/10 select-none ${
         disabled
@@ -305,7 +311,7 @@ function SidebarCard({
         </div>
       ) : (
         <>
-          <div className="grid place-items-center w-10 h-10 rounded-lg border border-white/10 bg-black/60 flex-shrink-0">
+          <div className="grid place-items-center h-10 rounded-lg border border-white/10 bg-black/60 flex-shrink-0 text-wrap">
             <Icon className="w-5 h-5 text-white/90" />
           </div>
           <span className="tracking-wide font-medium truncate max-w-[10rem] text-sm">
@@ -455,13 +461,12 @@ const Feature = () => {
     current: { x: number; y: number };
   } | null>(null);
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(null);
-  const [editingParams, setEditingParams] = useState<string>("");
-  const [editingVariables, setEditingVariables] = useState<string>("");
-  const [paramForm, setParamForm] = useState<{
-    name: string;
-    type: VarType;
-    attachTo: "input" | "output";
-  }>({ name: "", type: "string", attachTo: "input" });
+  const [editingParams, setEditingParams] = useState<Record<string, unknown>>(
+    {}
+  );
+  const [editingVariables, setEditingVariables] = useState<
+    Record<string, string>
+  >({});
   const [openSections, setOpenSections] = useState<{
     Trigger: boolean;
     Logger: boolean;
@@ -501,7 +506,7 @@ const Feature = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/predefined-nodes/${node.predefinedNodeId}`
+        `${API_BASE_URL}/predefined-nodes/${node.predefinedNodeId}`
       );
       if (response.ok) {
         const predefinedNode: PredefinedNode = await response.json();
@@ -616,7 +621,7 @@ const Feature = () => {
       if (type.startsWith("api_") && apiNode) {
         try {
           const response = await fetch(
-            `http://localhost:3000/flow/${currentFlow.id}/new-node`,
+            `${API_BASE_URL}/flow/${currentFlow.id}/new-node`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -666,7 +671,7 @@ const Feature = () => {
   // Flow management functions
   const loadFlows = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:3000/flow");
+      const response = await fetch(`${API_BASE_URL}/flow`);
       if (response.ok) {
         const data = await response.json();
         setFlows(data);
@@ -680,7 +685,7 @@ const Feature = () => {
     if (!newFlowForm.name.trim() || !newFlowForm.description.trim()) return;
 
     try {
-      const response = await fetch("http://localhost:3000/flow", {
+      const response = await fetch(`${API_BASE_URL}/flow`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -741,7 +746,7 @@ const Feature = () => {
 
       try {
         // Load specific flow with its nodes
-        const response = await fetch(`http://localhost:3000/flow/${flow.id}`);
+        const response = await fetch(`${API_BASE_URL}/flow/${flow.id}`);
         if (response.ok) {
           const flowData = await response.json();
 
@@ -972,7 +977,7 @@ const Feature = () => {
       // If both nodes have flowNodeId, sync with backend
       if (fromNode?.flowNodeId && toNode?.flowNodeId && currentFlow) {
         try {
-          await fetch("http://localhost:3000/flow/link-nodes", {
+          await fetch(`${API_BASE_URL}/flow/link-nodes`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -996,8 +1001,8 @@ const Feature = () => {
       // Load predefined node data to populate inputs/outputs
       const nodeWithData = await loadPredefinedNodeData(node);
       setSelectedNode(nodeWithData);
-      setEditingParams(JSON.stringify(nodeWithData.params, null, 2));
-      setEditingVariables(JSON.stringify(nodeWithData.variables, null, 2));
+      setEditingParams(nodeWithData.params || {});
+      setEditingVariables(nodeWithData.variables || {});
     },
     [loadPredefinedNodeData]
   );
@@ -1051,7 +1056,7 @@ const Feature = () => {
   // Fetch nodes from local API and register them into NODE_SPECS dynamically
   useEffect(() => {
     let mounted = true;
-    fetch("http://localhost:3000/predefined-nodes")
+    fetch(`${API_BASE_URL}/predefined-nodes`)
       .then((r) => r.json())
       .then((data) => {
         if (!mounted) return;
@@ -1144,7 +1149,7 @@ const Feature = () => {
                         onClick={async () => {
                           try {
                             const response = await fetch(
-                              `http://localhost:3000/flow/${currentFlow.id}/deploy`,
+                              `${API_BASE_URL}/flow/${currentFlow.id}/deploy`,
                               {
                                 method: "POST",
                               }
@@ -1233,7 +1238,7 @@ const Feature = () => {
               />
             </button>
             {openSections.Trigger && (
-              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-2">
+              <div className="px-6 mb-4 mt-2 flex gap-2 flex-wrap">
                 {apiNodes.filter((n) => n.type.toLowerCase() === "trigger")
                   .length > 0 ? (
                   apiNodes
@@ -1271,7 +1276,7 @@ const Feature = () => {
               />
             </button>
             {openSections.Logger && (
-              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-2">
+              <div className="px-6 mb-4 mt-2 flex gap-2 flex-wrap">
                 {apiNodes.filter((n) => n.type.toLowerCase() === "logger")
                   .length > 0 ? (
                   apiNodes
@@ -1294,44 +1299,6 @@ const Feature = () => {
               </div>
             )}
 
-            {/* Operations */}
-            <button
-              className="w-full px-6 py-3 text-sm text-white/80 flex items-center justify-between hover:bg-white/5"
-              onClick={() =>
-                setOpenSections((s) => ({ ...s, Operations: !s.Operations }))
-              }
-            >
-              <span>Operations</span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${
-                  openSections.Operations ? "rotate-180" : "rotate-0"
-                }`}
-              />
-            </button>
-            {openSections.Operations && (
-              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-2">
-                {apiNodes.filter((n) => n.type.toLowerCase() === "operations")
-                  .length > 0 ? (
-                  apiNodes
-                    .filter((n) => n.type.toLowerCase() === "operations")
-                    .map((n) => (
-                      <SidebarCard
-                        key={`api_${n.id}`}
-                        square
-                        category="Operations"
-                        label={n.name}
-                        icon={Filter}
-                        nodeType={`api_${n.name.toLowerCase()}`}
-                      />
-                    ))
-                ) : (
-                  <p className="text-xs text-white/50 col-span-3">
-                    No operations available
-                  </p>
-                )}
-              </div>
-            )}
-
             {/* Action */}
             <button
               className="w-full px-6 py-3 text-sm text-white/80 flex items-center justify-between hover:bg-white/5"
@@ -1347,7 +1314,7 @@ const Feature = () => {
               />
             </button>
             {openSections.Action && (
-              <div className="px-6 mb-6 mt-2 grid grid-cols-3 gap-2">
+              <div className="px-6 mb-6 mt-2 flex gap-2 flex-wrap">
                 {apiNodes.filter((n) => n.type.toLowerCase() === "action")
                   .length > 0 ? (
                   apiNodes
@@ -1483,20 +1450,17 @@ const Feature = () => {
                             currentFlow
                           ) {
                             try {
-                              await fetch(
-                                "http://localhost:3000/flow/unlink-nodes",
-                                {
-                                  method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    fromNodeId: fromNode.flowNodeId,
-                                    toNodeId: toNode.flowNodeId,
-                                    isForErrorFlow: false,
-                                  }),
-                                }
-                              );
+                              await fetch(`${API_BASE_URL}/flow/unlink-nodes`, {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  fromNodeId: fromNode.flowNodeId,
+                                  toNodeId: toNode.flowNodeId,
+                                  isForErrorFlow: false,
+                                }),
+                              });
                             } catch (error) {
                               console.error(
                                 "Failed to unlink nodes in backend:",
@@ -1550,7 +1514,7 @@ const Feature = () => {
                     if (nodeToRemove?.flowNodeId && currentFlow) {
                       try {
                         await fetch(
-                          `http://localhost:3000/flow/${currentFlow.id}/node/${nodeToRemove.flowNodeId}`,
+                          `${API_BASE_URL}/flow/${currentFlow.id}/node/${nodeToRemove.flowNodeId}`,
                           {
                             method: "DELETE",
                           }
@@ -1766,41 +1730,31 @@ const Feature = () => {
                       </div>
                     )}
 
-                    <div>
-                      <label className="text-xs text-white/70">
-                        Parameters (JSON)
-                      </label>
-                      <textarea
-                        value={editingParams}
-                        onChange={(e) => setEditingParams(e.target.value)}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/15 rounded text-xs font-mono focus:outline-none focus:ring-2 focus:ring-white/20"
-                        rows={4}
-                        placeholder="{}"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-white/70">
-                        Variables (JSON)
-                      </label>
-                      <textarea
-                        value={editingVariables}
-                        onChange={(e) => setEditingVariables(e.target.value)}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/15 rounded text-xs font-mono focus:outline-none focus:ring-2 focus:ring-white/20"
-                        rows={3}
-                        placeholder="{}"
-                      />
-                    </div>
+                    {/* Parameter Form */}
+                    <NodeParameterForm
+                      requiredParams={
+                        selectedNode.requiredParamsPayloadKeysTypes || {}
+                      }
+                      currentValues={editingParams}
+                      onChange={setEditingParams}
+                      nodeType={selectedNode.type}
+                    />
+
+                    {/* Variables Form */}
+                    <NodeVariablesForm
+                      variables={editingVariables}
+                      onChange={setEditingVariables}
+                    />
 
                     {/* Action Buttons */}
                     <div className="flex gap-2">
                       <button
                         onClick={async () => {
                           try {
-                            // Validate and parse JSON
-                            const parsedParams = JSON.parse(editingParams);
+                            // Use the form values directly (no JSON parsing needed)
+                            const parsedParams = editingParams;
                             console.log("Parsed Params:", parsedParams);
-                            const parsedVariables =
-                              JSON.parse(editingVariables);
+                            const parsedVariables = editingVariables;
 
                             // Update local state with new outputs based on variables
                             setNodes((prev) =>
@@ -1833,7 +1787,7 @@ const Feature = () => {
                             // Sync with backend if node has flowNodeId
                             if (selectedNode.flowNodeId && currentFlow) {
                               await fetch(
-                                `http://localhost:3000/flow/${currentFlow.id}/node/${selectedNode.flowNodeId}`,
+                                `${API_BASE_URL}/flow/${currentFlow.id}/node/${selectedNode.flowNodeId}`,
                                 {
                                   method: "PUT",
                                   headers: {
@@ -1852,15 +1806,8 @@ const Feature = () => {
                               alert("Local node updated successfully!");
                             }
                           } catch (error) {
-                            if (error instanceof SyntaxError) {
-                              console.error("JSON Syntax Error:", error);
-                              alert(
-                                "Invalid JSON format. Please check your parameters and variables."
-                              );
-                            } else {
-                              console.error("Failed to update node:", error);
-                              alert("Failed to update node");
-                            }
+                            console.error("Failed to update node:", error);
+                            alert("Failed to update node");
                           }
                         }}
                         className="flex-1 py-2 px-4 bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded-lg text-sm border border-green-500/30"
@@ -1878,7 +1825,7 @@ const Feature = () => {
                             onClick={async () => {
                               try {
                                 const response = await fetch(
-                                  `http://localhost:3000/flow/${currentFlow.id}/trigger/${selectedNode.flowNodeId}`,
+                                  `${API_BASE_URL}/flow/${currentFlow.id}/trigger/${selectedNode.flowNodeId}`,
                                   {
                                     method: "POST",
                                     headers: {
