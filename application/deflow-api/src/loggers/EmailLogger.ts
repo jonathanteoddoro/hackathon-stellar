@@ -16,7 +16,7 @@ export class LoggerTemplate extends LoggerNode {
         this.from = params['from'];
         this.to = params['to'];
     }
-
+    
     async execute(message: NodeMessage): Promise<NodeMessage> {
         
     const subject = message.metadata?.subject || `Log: ${this.name}`;
