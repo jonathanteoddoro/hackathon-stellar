@@ -24,17 +24,40 @@ class NodeFactory {
 
   static create(
     identifier: string,
-    customParams: Record<string, string>,
+    customParams: Record<string, any> = {},
   ): BaseNode | null {
-    const NodeClass = this.registry.get(identifier);
+    let NodeClass = this.registry.get(identifier);
+
     if (!NodeClass) {
-      console.error(`Nó '${identifier}' não encontrado no registry`);
+      const lower = identifier.toLowerCase();
+      for (const [key, cls] of this.registry.entries()) {
+        if (key.toLowerCase() === lower) {
+          NodeClass = cls;
+          break;
+        }
+      }
+    }
+
+    if (!NodeClass) {
+      const lower = identifier.toLowerCase();
+      for (const [key, cls] of this.registry.entries()) {
+        if (key.toLowerCase().endsWith(lower)) {
+          NodeClass = cls;
+          break;
+        }
+      }
+    }
+
+    if (!NodeClass) {
+      console.error(`Nó '${identifier}' não encontrado no registry. Registrados: ${Array.from(
+        this.registry.keys(),
+      ).join(', ')}`);
       return null;
     }
+
     return new NodeClass(customParams);
   }
 
-  // Lista todos os nós registrados
   static getRegisteredNodes(): Array<{
     identifier: string;
     category: NodeCategory;
@@ -45,7 +68,6 @@ class NodeFactory {
     }));
   }
 
-  // Lista nós por categoria
   static getNodesByCategory(category: NodeCategory): string[] {
     return Array.from(this.categoryMap.entries())
       .filter(([, cat]) => cat === category)

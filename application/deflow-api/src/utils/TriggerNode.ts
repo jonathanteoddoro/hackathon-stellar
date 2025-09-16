@@ -5,4 +5,5 @@ export abstract class TriggerNode {
   abstract description: string;
 
   abstract validatePayload(payload: object): NodeMessage;
+  abstract execute?(): Promise<NodeMessage>;
 }
