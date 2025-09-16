@@ -13,9 +13,17 @@ type CanvasNode = {
   type: string;
   x: number;
   y: number;
+  name: string;
+  description: string;
+  params: Record<string, any>;
+  variables: Record<string, string>;
   inputs: { id: string; name: string; type: VarType; value?: string }[];
   outputs: { id: string; name: string; type: VarType }[];
   flowNodeId?: string; // ID do nó no backend
+  successFlow?: string[];
+  errorFlow?: string[];
+  requiredParamsPayloadKeysTypes?: Record<string, string>;
+  outputPayloadKeysTypes?: Record<string, string>;
 };
 
 type Flow = {
@@ -76,8 +84,8 @@ const CATEGORY_NODE_BG_CLASS: Record<NodeSpec["category"], string> = {
 const NODE_SPECS: Record<string, NodeSpec> = {
   // Triggers
   swap: {
-    width: 200,
-    height: 160,
+    width: 180,
+    height: 140,
     className:
       "rounded-l-2xl rounded-r-xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Shuffle,
@@ -87,8 +95,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: false,
   },
   webhook_in: {
-    width: 200,
-    height: 160,
+    width: 180,
+    height: 140,
     className:
       "rounded-l-2xl rounded-r-xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Webhook,
@@ -98,8 +106,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: false,
   },
   price_feed: {
-    width: 200,
-    height: 160,
+    width: 180,
+    height: 140,
     className:
       "rounded-l-2xl rounded-r-xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: LineChart,
@@ -109,8 +117,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: false,
   },
   email: {
-    width: 220,
-    height: 120,
+    width: 180,
+    height: 110,
     className:
       "rounded-xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Mail,
@@ -120,8 +128,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: true,
   },
   logger_db: {
-    width: 220,
-    height: 120,
+    width: 180,
+    height: 110,
     className:
       "rounded-xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Database,
@@ -131,8 +139,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: true,
   },
   logger_chat: {
-    width: 220,
-    height: 120,
+    width: 180,
+    height: 110,
     className:
       "rounded-xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: MessageSquare,
@@ -143,8 +151,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
   },
   // Operations
   filter: {
-    width: 180,
-    height: 180,
+    width: 160,
+    height: 140,
     className:
       "rounded-2xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Filter,
@@ -154,8 +162,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: true,
   },
   transform: {
-    width: 180,
-    height: 180,
+    width: 160,
+    height: 140,
     className:
       "rounded-2xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Wand2,
@@ -165,8 +173,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: true,
   },
   aggregate: {
-    width: 180,
-    height: 180,
+    width: 160,
+    height: 140,
     className:
       "rounded-2xl bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Sigma,
@@ -177,8 +185,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
   },
   // Actions
   notify: {
-    width: 160,
-    height: 160,
+    width: 150,
+    height: 140,
     className:
       "rounded-full bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Bell,
@@ -188,8 +196,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: true,
   },
   execute: {
-    width: 160,
-    height: 160,
+    width: 150,
+    height: 140,
     className:
       "rounded-full bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Play,
@@ -199,8 +207,8 @@ const NODE_SPECS: Record<string, NodeSpec> = {
     canReceiveConnection: true,
   },
   webhook_out: {
-    width: 160,
-    height: 160,
+    width: 150,
+    height: 140,
     className:
       "rounded-full bg-[#0d0d0d] border border-white/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]",
     icon: Send,
@@ -233,7 +241,7 @@ function SidebarCard({
       return;
     }
   // store the node key (can be dynamic like `api_<id>`)
-  e.dataTransfer.setData("application/x-node-type", nodeType);
+    e.dataTransfer.setData("application/x-node-type", nodeType);
     e.dataTransfer.effectAllowed = "copy";
   };
 
@@ -242,8 +250,8 @@ function SidebarCard({
       draggable={!disabled}
       onDragStart={handleDragStart}
       className={`${
-        square ? "h-28 p-3 grid place-items-center overflow-hidden" : "flex items-center gap-4 px-5 py-4"
-      } rounded-xl border border-white/10 select-none ${
+        square ? "h-24 p-2 grid place-items-center overflow-hidden" : "flex items-center gap-3 px-4 py-3"
+      } rounded-lg border border-white/10 select-none ${
         disabled
           ? category
             ? `${CATEGORY_BG_CLASSES[category].disabled} opacity-60 cursor-not-allowed`
@@ -254,18 +262,18 @@ function SidebarCard({
       }`}
     >
       {square ? (
-        <div className="flex flex-col items-center justify-center gap-2 w-full h-full p-2">
-          <div className="grid place-items-center w-12 h-12 rounded-lg border border-white/10 bg-black/60 flex-shrink-0">
-            <Icon className="w-6 h-6 text-white/90" />
+        <div className="flex flex-col items-center justify-center gap-1 w-full h-full p-2">
+          <div className="grid place-items-center w-10 h-10 rounded-lg border border-white/10 bg-black/60 flex-shrink-0">
+            <Icon className="w-5 h-5 text-white/90" />
           </div>
-          <span className="text-[11px] leading-tight tracking-wide font-medium text-white/90 text-center truncate w-full">{label}</span>
+          <span className="text-[9px] leading-[1.1] tracking-wide font-medium text-white/90 text-center w-full overflow-hidden break-words hyphens-auto max-h-6">{label}</span>
         </div>
       ) : (
         <>
-          <div className="grid place-items-center w-12 h-12 rounded-lg border border-white/10 bg-black/60 flex-shrink-0">
-            <Icon className="w-6 h-6 text-white/90" />
+          <div className="grid place-items-center w-10 h-10 rounded-lg border border-white/10 bg-black/60 flex-shrink-0">
+            <Icon className="w-5 h-5 text-white/90" />
           </div>
-          <span className="tracking-wide font-medium truncate max-w-[10rem]">{label}</span>
+          <span className="tracking-wide font-medium truncate max-w-[10rem] text-sm">{label}</span>
         </>
       )}
     </div>
@@ -276,30 +284,75 @@ function NodeBox({ node, onRemove, onViewDetails, onStartDrag }: { node: CanvasN
   const spec = NODE_SPECS[node.type];
   const Icon = spec.icon;
 
+  // Determine if node is configured based on API properties
+  const isConfigured = node.params && Object.keys(node.params).length > 0;
+  const hasVariables = node.variables && Object.keys(node.variables).length > 0;
+  const hasRequiredParams = node.requiredParamsPayloadKeysTypes && Object.keys(node.requiredParamsPayloadKeysTypes).length > 0;
+
   return (
     <div className="absolute" style={{ left: node.x, top: node.y, width: spec.width, height: spec.height }} onMouseDown={(e) => onStartDrag(node.id, e)}>
-      <div className={`${spec.className} ${CATEGORY_NODE_BG_CLASS[spec.category]} w-full h-full relative overflow-hidden`}>
+      <div className={`${spec.className} ${CATEGORY_NODE_BG_CLASS[spec.category]} w-full h-full relative overflow-hidden border-2 transition-all duration-200 ${
+        isConfigured ? 'border-green-400/50' : 'border-white/10'
+      }`}>
+        {/* Status indicators */}
+        <div className="absolute top-1 left-1 flex gap-1">
+          {isConfigured && (
+            <div className="w-2 h-2 bg-green-400 rounded-full" title="Configured" />
+          )}
+          {hasVariables && (
+            <div className="w-2 h-2 bg-blue-400 rounded-full" title="Has Variables" />
+          )}
+          {hasRequiredParams && (
+            <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Has Required Parameters" />
+          )}
+        </div>
+
         <button
           onClick={() => onRemove(node.id)}
-          className="absolute top-2 left-2 w-6 h-6 grid place-items-center rounded-md bg-white/90 text-black"
+          className="absolute top-1 right-8 w-6 h-6 grid place-items-center rounded-md bg-red-500/80 hover:bg-red-500 text-white transition-colors"
           title="Remove"
         >
           <Minus className="w-4 h-4" />
         </button>
         <button
           onClick={() => onViewDetails(node)}
-          className="absolute top-2 right-2 w-6 h-6 grid place-items-center rounded-md bg-white/90 text-black"
+          className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-md bg-white/90 hover:bg-white text-black transition-colors"
           title="View Details"
         >
           <Eye className="w-4 h-4" />
         </button>
+
         <div className="w-full h-full flex flex-col items-center justify-center text-white/85 tracking-wider p-3 box-border">
-          <div className="flex flex-col items-center gap-2 max-w-full">
-            <div className="grid place-items-center w-10 h-10 rounded-md bg-black/50">
+          <div className="flex flex-col items-center gap-1.5 max-w-full">
+            <div className={`grid place-items-center w-10 h-10 rounded-lg transition-all duration-200 ${
+              isConfigured ? 'bg-green-400/20 border border-green-400/30' : 'bg-black/50 border border-white/10'
+            }`}>
               <Icon className="w-6 h-6" />
+          </div>
+            
+            <div className="text-center space-y-0.5">
+              <span className="text-xs font-bold block max-w-[160px] leading-tight line-clamp-2 overflow-hidden text-ellipsis">
+                {node.name || spec.label}
+              </span>
+              
+              <div className="text-xs text-white/50 font-medium">
+                {spec.category}
+              </div>
             </div>
-            <div className="text-center">
-              <span className="text-sm font-medium block max-w-[180px] leading-tight line-clamp-2 overflow-hidden text-ellipsis">{spec.label}</span>
+
+            {/* API-specific status indicators */}
+            <div className="flex flex-wrap gap-1 justify-center mt-1">
+              {isConfigured && (
+                <span className="text-xs bg-green-400/20 text-green-300 px-1.5 py-0.5 rounded-full border border-green-400/30">
+                  Config
+                </span>
+              )}
+              
+              {hasRequiredParams && !isConfigured && (
+                <span className="text-xs bg-yellow-400/20 text-yellow-300 px-1.5 py-0.5 rounded-full border border-yellow-400/30">
+                  Setup
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -359,37 +412,53 @@ const Feature = () => {
     // if this node type was already used, block additional drops
     if (usedTypes[type]) return;
 
-    const newNode: CanvasNode = { id: `${Date.now()}-${nodes.length}`, type, x, y, inputs: [], outputs: [] };
-    
-    // If it's an API node, save to backend
-    if (type.startsWith('api_')) {
-      try {
-        const apiNode = apiNodes.find(n => `api_${n.name.toLowerCase()}` === type);
-        if (apiNode) {
-          const response = await fetch(`http://localhost:3000/flow/${currentFlow.id}/new-node`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              predefinedNodeId: apiNode.id,
-              name: apiNode.name,
-              type: apiNode.type,
-              description: apiNode.description,
-              params: '{}',
-              x: Math.round(x),
-              y: Math.round(y),
-              variables: '{}'
-            })
-          });
-          
-          if (response.ok) {
-            const createdNode = await response.json();
-            newNode.flowNodeId = createdNode.id;
-          }
-        }
-      } catch (error) {
-        console.error('Failed to save node to backend:', error);
-      }
-    }
+     // Find the API node definition if it's an API node
+     const apiNode = type.startsWith('api_') ? apiNodes.find(n => `api_${n.name.toLowerCase()}` === type) : null;
+     
+     const newNode: CanvasNode = { 
+       id: `${Date.now()}-${nodes.length}`, 
+       type, 
+       x, 
+       y, 
+       name: apiNode?.name || spec.label,
+       description: apiNode?.description || `Auto-generated ${spec.label} node`,
+       params: {},
+       variables: {},
+       inputs: [], 
+       outputs: [],
+       requiredParamsPayloadKeysTypes: apiNode ? {} : undefined,
+       outputPayloadKeysTypes: apiNode ? {} : undefined
+     };
+     
+     // If it's an API node, save to backend
+     if (type.startsWith('api_') && apiNode) {
+       try {
+         const response = await fetch(`http://localhost:3000/flow/${currentFlow.id}/new-node`, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             predefinedNodeId: apiNode.id,
+             name: apiNode.name,
+             type: apiNode.type,
+             description: apiNode.description,
+             params: '{}',
+             x: Math.round(x),
+             y: Math.round(y),
+             variables: '{}'
+           })
+         });
+         
+         if (response.ok) {
+           const createdNode = await response.json();
+           newNode.flowNodeId = createdNode.id;
+           // Update with backend response data
+           newNode.params = createdNode.params || {};
+           newNode.variables = createdNode.variables || {};
+         }
+       } catch (error) {
+         console.error('Failed to save node to backend:', error);
+       }
+     }
     
     setNodes((prev) => [...prev, newNode]);
     setUsedTypes((prev) => ({ ...prev, [type]: true }));
@@ -471,7 +540,7 @@ const Feature = () => {
       // Logger: single incoming
       return countIncoming(node.id) === 0;
     },
-  [countIncoming]
+    [countIncoming]
   );
 
   const onStartConnect = useCallback(
@@ -483,7 +552,7 @@ const Feature = () => {
       const start = getSourcePoint(n);
       setDragConnection({ fromId, start, current: start });
     },
-  [nodes, getSourcePoint, canNodeStartNow]
+    [nodes, getSourcePoint, canNodeStartNow]
   );
 
   const onMouseMoveCanvas = useCallback(
@@ -530,7 +599,7 @@ const Feature = () => {
       
       // Check if connection already exists
       if (edges.some((e) => e.fromId === dragConnection.fromId && e.toId === toId)) {
-        setDragConnection(null);
+      setDragConnection(null);
         return;
       }
       
@@ -619,8 +688,8 @@ const Feature = () => {
           console.log(n.type);
           const category: NodeSpec['category'] = t === 'logger' ? 'Logger' : t === 'trigger' ? 'Trigger' : t === 'operations' ? 'Operations' : 'Action';
           NODE_SPECS[key] = {
-            width: 200,
-            height: category === 'Trigger' ? 160 : 120,
+            width: 180,
+            height: category === 'Trigger' ? 140 : category === 'Action' ? 150 : 110,
             className: NODE_SPECS['swap'].className,
             icon: Mail,
             label: n.name.toUpperCase(),
@@ -677,9 +746,32 @@ const Feature = () => {
                       <div className="text-sm font-medium text-white truncate">{currentFlow.name}</div>
                       <div className="text-xs text-white/60 truncate">{currentFlow.description}</div>
                     </div>
-                    <button className="ml-2 w-6 h-6 grid place-items-center rounded hover:bg-white/10">
-                      <Settings className="w-4 h-4 text-white/70" />
-                    </button>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`http://localhost:3000/flow/${currentFlow.id}/deploy`, {
+                              method: 'POST'
+                            });
+                            if (response.ok) {
+                              alert('Flow deployed successfully!');
+                            } else {
+                              alert('Failed to deploy flow');
+                            }
+                          } catch (error) {
+                            console.error('Failed to deploy flow:', error);
+                            alert('Failed to deploy flow');
+                          }
+                        }}
+                        className="w-6 h-6 grid place-items-center rounded hover:bg-green-500/20 text-green-400"
+                        title="Deploy Flow"
+                      >
+                        <Play className="w-4 h-4" />
+                      </button>
+                      <button className="w-6 h-6 grid place-items-center rounded hover:bg-white/10">
+                        <Settings className="w-4 h-4 text-white/70" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -706,7 +798,7 @@ const Feature = () => {
               <ChevronDown className={`w-4 h-4 transition-transform ${openSections.Trigger ? "rotate-180" : "rotate-0"}`} />
             </button>
             {openSections.Trigger && (
-              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-3">
+              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-2">
                 {apiNodes.filter(n => n.type.toLowerCase() === 'trigger').length > 0 ? (
                   apiNodes.filter(n => n.type.toLowerCase() === 'trigger').map(n => (
                     <SidebarCard
@@ -734,7 +826,7 @@ const Feature = () => {
               <ChevronDown className={`w-4 h-4 transition-transform ${openSections.Logger ? "rotate-180" : "rotate-0"}`} />
             </button>
             {openSections.Logger && (
-              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-3">
+              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-2">
                 {apiNodes.filter(n => n.type.toLowerCase() === 'logger').length > 0 ? (
                   apiNodes.filter(n => n.type.toLowerCase() === 'logger').map(n => (
                     <SidebarCard
@@ -762,7 +854,7 @@ const Feature = () => {
               <ChevronDown className={`w-4 h-4 transition-transform ${openSections.Operations ? "rotate-180" : "rotate-0"}`} />
             </button>
             {openSections.Operations && (
-              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-3">
+              <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-2">
                 {apiNodes.filter(n => n.type.toLowerCase() === 'operations').length > 0 ? (
                   apiNodes.filter(n => n.type.toLowerCase() === 'operations').map(n => (
                     <SidebarCard
@@ -790,7 +882,7 @@ const Feature = () => {
               <ChevronDown className={`w-4 h-4 transition-transform ${openSections.Action ? "rotate-180" : "rotate-0"}`} />
             </button>
             {openSections.Action && (
-              <div className="px-6 mb-6 mt-2 grid grid-cols-3 gap-3">
+              <div className="px-6 mb-6 mt-2 grid grid-cols-3 gap-2">
                 {apiNodes.filter(n => n.type.toLowerCase() === 'action').length > 0 ? (
                   apiNodes.filter(n => n.type.toLowerCase() === 'action').map(n => (
                     <SidebarCard
@@ -853,16 +945,16 @@ const Feature = () => {
               
               return (
                 <g key={e.id}>
-                  <path
-                    d={`M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`}
-                    stroke="white"
-                    strokeOpacity="0.85"
-                    strokeWidth="2"
-                    vectorEffect="non-scaling-stroke"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
+                <path
+                  d={`M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`}
+                  stroke="white"
+                  strokeOpacity="0.85"
+                  strokeWidth="2"
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
                   {/* Invisible clickable path for easier interaction */}
                   <path
                     d={`M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`}
@@ -1035,20 +1127,38 @@ const Feature = () => {
         </div>
       )}
 
-      {/* Node Details Modal */}
-      {selectedNode && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[#0d0d0d] border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-white">Node Details</h3>
-              <button
-                onClick={() => setSelectedNode(null)}
-                className="w-8 h-8 grid place-items-center rounded-md bg-white/10 hover:bg-white/20 text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-4">
+       {/* Node Details Modal */}
+       {selectedNode && (
+         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+           <div className="bg-[#0d0d0d] border border-white/10 rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+             <div className="flex items-center justify-between p-6 border-b border-white/10">
+               <h3 className="text-lg font-semibold text-white">Node Details</h3>
+               <button
+                 onClick={() => setSelectedNode(null)}
+                 className="w-8 h-8 grid place-items-center rounded-md bg-white/10 hover:bg-white/20 text-white"
+               >
+                 <X className="w-4 h-4" />
+               </button>
+             </div>
+             <div className="flex-1 overflow-y-auto p-6">
+               <div className="space-y-4">
+              <div>
+                <label className="text-sm text-white/70">Name</label>
+                <input
+                  value={selectedNode.name}
+                  onChange={(e) => setNodes(prev => prev.map(n => n.id === selectedNode.id ? { ...n, name: e.target.value } : n))}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/15 rounded text-sm focus:outline-none focus:ring-2 focus:ring-white/20"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-white/70">Description</label>
+                <textarea
+                  value={selectedNode.description}
+                  onChange={(e) => setNodes(prev => prev.map(n => n.id === selectedNode.id ? { ...n, description: e.target.value } : n))}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/15 rounded text-sm focus:outline-none focus:ring-2 focus:ring-white/20"
+                  rows={2}
+                />
+              </div>
               <div>
                 <label className="text-sm text-white/70">Type</label>
                 <p className="text-white font-medium">{NODE_SPECS[selectedNode.type].label}</p>
@@ -1066,6 +1176,158 @@ const Feature = () => {
                 <p className="text-white font-medium">
                   Incoming: {countIncoming(selectedNode.id)}, Outgoing: {countOutgoing(selectedNode.id)}
                 </p>
+              </div>
+              
+              {/* API Configuration Section */}
+              <div className="border border-white/10 rounded-lg">
+                <div className="px-3 py-2 border-b border-white/10 text-sm font-medium">API Configuration</div>
+                <div className="p-3 space-y-3">
+                  {selectedNode.flowNodeId && (
+                    <div className="text-xs text-blue-400 bg-blue-400/10 p-2 rounded">
+                      <strong>Backend ID:</strong> {selectedNode.flowNodeId}
+                    </div>
+                  )}
+                  
+                  {/* Node-specific parameter hints based on type */}
+                  {selectedNode.type.includes('cron') && (
+                    <div className="text-xs text-blue-400 bg-blue-400/10 p-2 rounded">
+                      <strong>Cron Trigger:</strong> Use "time" parameter with cron expression (e.g., "0 0 * * *" for daily)
+                    </div>
+                  )}
+                  {selectedNode.type.includes('compound') && (
+                    <div className="text-xs text-green-400 bg-green-400/10 p-2 rounded">
+                      <strong>Auto Compound:</strong> Use "minThreshold" parameter (default: 5) and "asset" in payload
+                    </div>
+                  )}
+                  {selectedNode.type.includes('email') && (
+                    <div className="text-xs text-yellow-400 bg-yellow-400/10 p-2 rounded">
+                      <strong>Email Logger:</strong> Configure "transporter", "from", and "to" parameters
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="text-xs text-white/70">Parameters (JSON)</label>
+                    <textarea
+                      value={JSON.stringify(selectedNode.params, null, 2)}
+                      onChange={async (e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          setNodes(prev => prev.map(n => n.id === selectedNode.id ? { ...n, params: parsed } : n));
+                          
+                          // Sync with backend if node has flowNodeId
+                          if (selectedNode.flowNodeId && currentFlow) {
+                            try {
+                              await fetch(`http://localhost:3000/flow/${currentFlow.id}/node/${selectedNode.flowNodeId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  params: JSON.stringify(parsed)
+                                })
+                              });
+                            } catch (error) {
+                              console.error('Failed to sync params with backend:', error);
+                            }
+                          }
+                        } catch (err) {
+                          // Invalid JSON, don't update
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/15 rounded text-xs font-mono focus:outline-none focus:ring-2 focus:ring-white/20"
+                      rows={4}
+                      placeholder="{}"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/70">Variables (JSON)</label>
+                    <textarea
+                      value={JSON.stringify(selectedNode.variables, null, 2)}
+                      onChange={async (e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          setNodes(prev => prev.map(n => n.id === selectedNode.id ? { ...n, variables: parsed } : n));
+                          
+                          // Sync with backend if node has flowNodeId
+                          if (selectedNode.flowNodeId && currentFlow) {
+                            try {
+                              await fetch(`http://localhost:3000/flow/${currentFlow.id}/node/${selectedNode.flowNodeId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  variables: JSON.stringify(parsed)
+                                })
+                              });
+                            } catch (error) {
+                              console.error('Failed to sync variables with backend:', error);
+                            }
+                          }
+                        } catch (err) {
+                          // Invalid JSON, don't update
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/15 rounded text-xs font-mono focus:outline-none focus:ring-2 focus:ring-white/20"
+                      rows={3}
+                      placeholder="{}"
+                    />
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        if (selectedNode.flowNodeId && currentFlow) {
+                          try {
+                            await fetch(`http://localhost:3000/flow/${currentFlow.id}/node/${selectedNode.flowNodeId}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                name: selectedNode.name,
+                                description: selectedNode.description,
+                                params: JSON.stringify(selectedNode.params),
+                                variables: JSON.stringify(selectedNode.variables)
+                              })
+                            });
+                            alert('Node updated successfully!');
+                          } catch (error) {
+                            console.error('Failed to update node:', error);
+                            alert('Failed to update node');
+                          }
+                        }
+                      }}
+                      className="flex-1 py-2 px-4 bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded-lg text-sm border border-green-500/30"
+                      disabled={!selectedNode.flowNodeId}
+                    >
+                      {selectedNode.flowNodeId ? 'Save Changes' : 'Local Node'}
+                    </button>
+                    
+                    {/* Test HTTP Trigger Button */}
+                    {selectedNode.type.includes('trigger') && selectedNode.flowNodeId && currentFlow && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`http://localhost:3000/flow/${currentFlow.id}/trigger/${selectedNode.flowNodeId}`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ test: true, timestamp: new Date().toISOString() })
+                            });
+                            
+                            if (response.ok) {
+                              const result = await response.json();
+                              alert(`Trigger executed successfully!\nResult: ${JSON.stringify(result, null, 2)}`);
+                            } else {
+                              alert('Failed to execute trigger');
+                            }
+                          } catch (error) {
+                            console.error('Failed to execute trigger:', error);
+                            alert('Failed to execute trigger');
+                          }
+                        }}
+                        className="flex-1 py-2 px-4 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-lg text-sm border border-blue-500/30"
+                      >
+                        Test Trigger
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
               {/* n8n-like IO and Parameters */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1167,6 +1429,7 @@ const Feature = () => {
                     Add parameter
                   </button>
                 </div>
+              </div>
               </div>
             </div>
           </div>
