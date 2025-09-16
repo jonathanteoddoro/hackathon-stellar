@@ -41,8 +41,7 @@ const data = {
             value: 'number',
           },
           variables: {
-            message:
-              'Swapped {{value}} tokens for USD com o hash {{txHash}} _arm: {{returnValue._arm}}',
+            message: 'Swapped {{value}} tokens for USD com o hash {{txHash}}',
           },
           outputPayloadKeysTypes: {
             valueUsd: 'number',
@@ -50,12 +49,15 @@ const data = {
           },
           successFlow: [
             {
-              id: 'logger-transaction',
+              id: 'whatsapp-logger',
               x: 700,
               y: 200,
               type: NodeType.Logger,
-              name: 'TransactionLogger',
-              params: {},
+              name: 'WhatsAppLogger',
+              params: {
+                messageText: '{{variables.message}}',
+                toNumber: '+5527998924571',
+              },
               description:
                 'Salva no log as informações da transação e valor em USD.',
               requiredInputPayloadKeysTypes: {
