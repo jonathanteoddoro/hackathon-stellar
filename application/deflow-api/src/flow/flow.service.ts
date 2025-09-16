@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ActionNode } from 'src/utils/ActionNode';
 import { LoggerNode } from 'src/utils/LoggerNode';
 import { Node } from 'src/models/Node';
@@ -15,6 +15,8 @@ interface FlowData {
 
 @Injectable()
 export class FlowService {
+  private readonly logger = new Logger(FlowService.name);
+
   constructor() {}
   async executeFlow(
     flowData: FlowData,
@@ -46,7 +48,7 @@ export class FlowService {
       } else if (nodeInstance instanceof ActionNode) {
         try {
           currentMessage = await nodeInstance.execute(currentMessage!);
-          console.log(
+          this.logger.log(
             `Action Node [${nodeInstance.name}] executed successfully.`,
           );
           if (currentNode.variables) {
@@ -68,12 +70,11 @@ export class FlowService {
               currentMessage.payload.variables[key] = finalValue;
             }
           }
-          console.log('Current Message:', currentMessage);
           queue.push(...currentNode.successFlow);
         } catch (error) {
-          console.error(
-            `Action Node [${nodeInstance.name}] execution failed:`,
-            error,
+          this.logger.error(
+            `Action Node [${nodeInstance.name}] execution failed, processing error flow.`,
+            (error as Error)?.stack,
           );
           currentMessage = {
             metadata: {
@@ -81,7 +82,7 @@ export class FlowService {
             },
             payload: {
               ...(currentMessage ? currentMessage.payload : {}),
-              [`${nodeInstance.name}_error`]:
+              [`${nodeInstance.name}Error`]:
                 (error as Error)?.message || 'Unknown error',
             },
           };
