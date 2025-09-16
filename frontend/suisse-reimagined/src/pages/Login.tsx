@@ -18,7 +18,7 @@ const Login = () => {
           const email = String(formData.get("email") || "").trim();
           const password = String(formData.get("password") || "");
           if (email === "user@gmail.com" && password === "12345") {
-            navigate("/home");
+            navigate("/feature");
           } else {
             alert("Invalid credentials. Use user@gmail.com / 12345");
           }

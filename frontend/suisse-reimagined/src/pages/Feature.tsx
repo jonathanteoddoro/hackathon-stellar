@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Mail, Shuffle, Plus, Minus, Webhook, LineChart, Database, MessageSquare, Filter, Wand2, Sigma, Bell, Send, Play, Eye, X, ChevronDown } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Mail, Shuffle, Plus, Minus, Webhook, LineChart, Database, MessageSquare, Filter, Wand2, Sigma, Bell, Send, Play, Eye, X, ChevronDown, Trash2 } from "lucide-react";
 import DotPattern from "../components/dot-pattern";
 
 // Three mocked nodes per category
@@ -9,11 +9,15 @@ type NodeType =
   | "filter" | "transform" | "aggregate" // Operations
   | "notify" | "execute" | "webhook_out"; // Actions
 
+type VarType = 'string' | 'number' | 'boolean' | 'object';
+
 type CanvasNode = {
   id: string;
   type: NodeType;
   x: number;
   y: number;
+  inputs: { id: string; name: string; type: VarType; value?: string }[];
+  outputs: { id: string; name: string; type: VarType }[];
 };
 
 type Edge = {
@@ -33,6 +37,35 @@ type NodeSpec = {
   category: "Trigger" | "Logger" | "Operations" | "Action";
   canStartConnection: boolean; // base capability
   canReceiveConnection: boolean; // base capability
+};
+
+const CATEGORY_BG_CLASSES: Record<
+  NodeSpec["category"],
+  { enabled: string; disabled: string }
+> = {
+  Trigger: {
+    enabled: "bg-[#9873FF]/15 hover:bg-[#9873FF]/25",
+    disabled: "bg-[#9873FF]/10",
+  },
+  Logger: {
+    enabled: "bg-[#22D3EE]/15 hover:bg-[#22D3EE]/25",
+    disabled: "bg-[#22D3EE]/10",
+  },
+  Operations: {
+    enabled: "bg-[#10B981]/15 hover:bg-[#10B981]/25",
+    disabled: "bg-[#10B981]/10",
+  },
+  Action: {
+    enabled: "bg-[#F59E0B]/15 hover:bg-[#F59E0B]/25",
+    disabled: "bg-[#F59E0B]/10",
+  },
+};
+
+const CATEGORY_NODE_BG_CLASS: Record<NodeSpec["category"], string> = {
+  Trigger: "bg-[#9873FF]/15",
+  Logger: "bg-[#22D3EE]/15",
+  Operations: "bg-[#10B981]/15",
+  Action: "bg-[#F59E0B]/15",
 };
 
 const NODE_SPECS: Record<NodeType, NodeSpec> = {
@@ -179,13 +212,16 @@ function SidebarCard({
   nodeType,
   disabled,
   square,
+  category,
 }: {
   label: string;
   icon: typeof Mail;
   nodeType: NodeType;
   disabled?: boolean;
   square?: boolean;
+  category?: NodeSpec["category"];
 }) {
+  const spec = NODE_SPECS[nodeType];
   const handleDragStart = (e: React.DragEvent) => {
     if (disabled) {
       e.preventDefault();
@@ -199,18 +235,24 @@ function SidebarCard({
     <div
       draggable={!disabled}
       onDragStart={handleDragStart}
-      className={`${square ? "aspect-square p-0 grid place-items-center" : "flex items-center gap-4 px-5 py-4"} rounded-xl border border-white/10 select-none ${
+      className={`${
+        square ? "h-28 p-3 grid place-items-center overflow-hidden" : "flex items-center gap-4 px-5 py-4"
+      } rounded-xl border border-white/10 select-none ${
         disabled
-          ? "bg-[#1a1a1a]/50 opacity-50 cursor-not-allowed"
+          ? category
+            ? `${CATEGORY_BG_CLASSES[category].disabled} opacity-60 cursor-not-allowed`
+            : "bg-[#1a1a1a]/50 opacity-60 cursor-not-allowed"
+          : category
+          ? `${CATEGORY_BG_CLASSES[category].enabled} cursor-grab active:cursor-grabbing`
           : "bg-[#1a1a1a] hover:bg-[#232323] cursor-grab active:cursor-grabbing"
       }`}
     >
       {square ? (
-        <div className="flex flex-col items-center justify-center gap-2">
+        <div className="flex flex-col items-center justify-center gap-2 w-full h-full">
           <div className="grid place-items-center size-10 rounded-lg border border-white/10 bg-black/60">
             <Icon className="size-5 text-white/90" />
           </div>
-          <span className="text-xs tracking-wide font-medium text-white/90 text-center px-2">{label}</span>
+          <span className="text-[10px] leading-tight tracking-wide font-medium text-white/90 text-center">{label}</span>
         </div>
       ) : (
         <>
@@ -224,13 +266,13 @@ function SidebarCard({
   );
 }
 
-function NodeBox({ node, onRemove, onViewDetails }: { node: CanvasNode; onRemove: (id: string) => void; onViewDetails: (node: CanvasNode) => void }) {
+function NodeBox({ node, onRemove, onViewDetails, onStartDrag }: { node: CanvasNode; onRemove: (id: string) => void; onViewDetails: (node: CanvasNode) => void; onStartDrag: (id: string, e: React.MouseEvent) => void }) {
   const spec = NODE_SPECS[node.type];
   const Icon = spec.icon;
 
   return (
-    <div className="absolute" style={{ left: node.x, top: node.y, width: spec.width, height: spec.height }}>
-      <div className={spec.className + " w-full h-full relative"}>
+    <div className="absolute" style={{ left: node.x, top: node.y, width: spec.width, height: spec.height }} onMouseDown={(e) => onStartDrag(node.id, e)}>
+      <div className={`${spec.className} ${CATEGORY_NODE_BG_CLASS[spec.category]} w-full h-full relative`}>
         <button
           onClick={() => onRemove(node.id)}
           className="absolute top-1 left-1 size-6 grid place-items-center rounded-md bg-white/90 text-black"
@@ -278,6 +320,7 @@ const Feature = () => {
     | null
   >(null);
   const [selectedNode, setSelectedNode] = useState<CanvasNode | null>(null);
+  const [paramForm, setParamForm] = useState<{ name: string; type: VarType; attachTo: 'input' | 'output' }>({ name: '', type: 'string', attachTo: 'input' });
   const [openSections, setOpenSections] = useState<{ Trigger: boolean; Logger: boolean; Operations: boolean; Action: boolean }>({
     Trigger: false,
     Logger: false,
@@ -285,6 +328,8 @@ const Feature = () => {
     Action: false,
   });
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [dragNode, setDragNode] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const [zoom, setZoom] = useState<number>(0.85);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -295,13 +340,13 @@ const Feature = () => {
     if (!rect) return;
 
     const spec = NODE_SPECS[type];
-    const x = e.clientX - rect.left - spec.width / 2;
-    const y = e.clientY - rect.top - spec.height / 2;
+    const x = (e.clientX - rect.left) / zoom - spec.width / 2;
+    const y = (e.clientY - rect.top) / zoom - spec.height / 2;
 
     // if this node type was already used, block additional drops
     if (usedTypes[type]) return;
 
-    const newNode: CanvasNode = { id: `${Date.now()}-${nodes.length}`, type, x: Math.max(0, x), y: Math.max(0, y) };
+    const newNode: CanvasNode = { id: `${Date.now()}-${nodes.length}`, type, x, y, inputs: [], outputs: [] };
     setNodes((prev) => [...prev, newNode]);
     setUsedTypes((prev) => ({ ...prev, [type]: true }));
   }, []);
@@ -361,19 +406,29 @@ const Feature = () => {
 
   const onMouseMoveCanvas = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!dragConnection) return;
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
+
+      if (dragConnection) {
       setDragConnection((prev) =>
         prev
           ? {
               ...prev,
-              current: { x: e.clientX - rect.left, y: e.clientY - rect.top },
+                current: { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom },
             }
           : prev
       );
+      }
+
+      if (dragNode) {
+        const { id, offsetX, offsetY } = dragNode;
+        const newX = (e.clientX - rect.left) / zoom - offsetX;
+        const newY = (e.clientY - rect.top) / zoom - offsetY;
+        setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x: newX, y: newY } : n)));
+      }
+      // variable drag logic removed
     },
-    [dragConnection]
+    [dragConnection, dragNode, zoom, nodes]
   );
 
   const onCompleteConnect = useCallback(
@@ -404,6 +459,43 @@ const Feature = () => {
     setSelectedNode(node);
   }, []);
 
+  const onStartDragNode = useCallback(
+    (id: string, e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("button")) return; // ignore drags starting from buttons/handles
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const node = nodes.find((n) => n.id === id);
+      if (!node) return;
+      const offsetX = (e.clientX - rect.left) / zoom - node.x;
+      const offsetY = (e.clientY - rect.top) / zoom - node.y;
+      setDragNode({ id, offsetX, offsetY });
+    },
+    [nodes, zoom]
+  );
+
+  const onWheelCanvas = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    setZoom((z) => {
+      const next = e.deltaY > 0 ? z * 0.95 : z * 1.05;
+      return Math.max(0.5, Math.min(2, Number(next.toFixed(3))));
+    });
+  }, []);
+
+  const onCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // If we're dragging a connection and click on empty space, cancel it
+    if (dragConnection) {
+      const target = e.target as HTMLElement;
+      // Only cancel if clicking on the canvas itself, not on nodes or buttons
+      if (target === canvasRef.current || target.closest('.canvas-background')) {
+        setDragConnection(null);
+      }
+    }
+  }, [dragConnection]);
+
+  // variable removal logic removed (no standalone variables)
+
   return (
     <div className="min-h-screen relative text-foreground flex">
       {/* Dot Pattern Background (dark) */}
@@ -418,7 +510,7 @@ const Feature = () => {
             <img src="/DeflowLogo.png" alt="Deflow" className="h-8 w-auto" />
             <span className="text-lg font-semibold tracking-tight">Deflow</span>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-scroll sidebar-scroll" style={{ scrollbarGutter: "stable" }}>
             {/* Trigger */}
             <button
               className="w-full px-6 py-3 text-sm text-white/80 flex items-center justify-between hover:bg-white/5"
@@ -429,9 +521,9 @@ const Feature = () => {
             </button>
             {openSections.Trigger && (
               <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-3">
-                <SidebarCard square label="SWAP" icon={Shuffle} nodeType="swap" disabled={usedTypes.swap} />
-                <SidebarCard square label="WEBHOOK IN" icon={Webhook} nodeType="webhook_in" disabled={usedTypes.webhook_in} />
-                <SidebarCard square label="PRICE FEED" icon={LineChart} nodeType="price_feed" disabled={usedTypes.price_feed} />
+                <SidebarCard square category="Trigger" label="SWAP" icon={Shuffle} nodeType="swap" disabled={usedTypes.swap} />
+                <SidebarCard square category="Trigger" label="WEBHOOK IN" icon={Webhook} nodeType="webhook_in" disabled={usedTypes.webhook_in} />
+                <SidebarCard square category="Trigger" label="PRICE FEED" icon={LineChart} nodeType="price_feed" disabled={usedTypes.price_feed} />
               </div>
             )}
 
@@ -445,9 +537,9 @@ const Feature = () => {
             </button>
             {openSections.Logger && (
               <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-3">
-                <SidebarCard square label="EMAIL" icon={Mail} nodeType="email" disabled={usedTypes.email} />
-                <SidebarCard square label="DB LOGGER" icon={Database} nodeType="logger_db" disabled={usedTypes.logger_db} />
-                <SidebarCard square label="CHAT LOGGER" icon={MessageSquare} nodeType="logger_chat" disabled={usedTypes.logger_chat} />
+                <SidebarCard square category="Logger" label="EMAIL" icon={Mail} nodeType="email" disabled={usedTypes.email} />
+                <SidebarCard square category="Logger" label="DB LOGGER" icon={Database} nodeType="logger_db" disabled={usedTypes.logger_db} />
+                <SidebarCard square category="Logger" label="CHAT LOGGER" icon={MessageSquare} nodeType="logger_chat" disabled={usedTypes.logger_chat} />
               </div>
             )}
 
@@ -461,9 +553,9 @@ const Feature = () => {
             </button>
             {openSections.Operations && (
               <div className="px-6 mb-4 mt-2 grid grid-cols-3 gap-3">
-                <SidebarCard square label="FILTER" icon={Filter} nodeType="filter" disabled={usedTypes.filter} />
-                <SidebarCard square label="TRANSFORM" icon={Wand2} nodeType="transform" disabled={usedTypes.transform} />
-                <SidebarCard square label="AGGREGATE" icon={Sigma} nodeType="aggregate" disabled={usedTypes.aggregate} />
+                <SidebarCard square category="Operations" label="FILTER" icon={Filter} nodeType="filter" disabled={usedTypes.filter} />
+                <SidebarCard square category="Operations" label="TRANSFORM" icon={Wand2} nodeType="transform" disabled={usedTypes.transform} />
+                <SidebarCard square category="Operations" label="AGGREGATE" icon={Sigma} nodeType="aggregate" disabled={usedTypes.aggregate} />
               </div>
             )}
 
@@ -477,9 +569,9 @@ const Feature = () => {
             </button>
             {openSections.Action && (
               <div className="px-6 mb-6 mt-2 grid grid-cols-3 gap-3">
-                <SidebarCard square label="NOTIFY" icon={Bell} nodeType="notify" disabled={usedTypes.notify} />
-                <SidebarCard square label="EXECUTE" icon={Play} nodeType="execute" disabled={usedTypes.execute} />
-                <SidebarCard square label="WEBHOOK OUT" icon={Send} nodeType="webhook_out" disabled={usedTypes.webhook_out} />
+                <SidebarCard square category="Action" label="NOTIFY" icon={Bell} nodeType="notify" disabled={usedTypes.notify} />
+                <SidebarCard square category="Action" label="EXECUTE" icon={Play} nodeType="execute" disabled={usedTypes.execute} />
+                <SidebarCard square category="Action" label="WEBHOOK OUT" icon={Send} nodeType="webhook_out" disabled={usedTypes.webhook_out} />
               </div>
             )}
           </div>
@@ -488,45 +580,67 @@ const Feature = () => {
 
       {/* Canvas */}
       <main className="flex-1 relative">
+        {/* Zoom Controls */}
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+          <button className="size-8 rounded-md bg-white/10 hover:bg-white/20 text-white" onClick={() => setZoom((z) => Math.max(0.5, Number((z * 0.9).toFixed(3))))}>-</button>
+          <span className="text-sm tabular-nums bg-white/5 rounded px-2 py-1">{Math.round(zoom * 100)}%</span>
+          <button className="size-8 rounded-md bg-white/10 hover:bg-white/20 text-white" onClick={() => setZoom((z) => Math.min(2, Number((z * 1.1).toFixed(3))))}>+</button>
+          <button className="h-8 px-2 rounded-md bg-white/10 hover:bg-white/20 text-white" onClick={() => setZoom(0.85)}>Reset</button>
+        </div>
         <div
           ref={canvasRef}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onMouseMove={onMouseMoveCanvas}
-          className="h-screen w-full relative"
+          onMouseUp={() => {
+            setDragNode(null);
+          }}
+          onWheel={onWheelCanvas}
+          onClick={onCanvasClick}
+          className="h-screen w-full relative overflow-hidden canvas-background"
         >
+          <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${zoom})` }}>
           {/* SVG Edges */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" shapeRendering="geometricPrecision" style={{ overflow: "visible" }}>
             {edges.map((e) => {
               const from = nodes.find((n) => n.id === e.fromId);
               const to = nodes.find((n) => n.id === e.toId);
               if (!from || !to) return null;
               const p1 = getSourcePoint(from);
               const p2 = getTargetPoint(to);
+              
+              // Calculate control point for smooth curve
+              const distance = Math.abs(p2.x - p1.x);
+              const controlOffset = Math.min(distance * 0.5, 100);
+              const cp1x = p1.x + controlOffset;
+              const cp1y = p1.y;
+              const cp2x = p2.x - controlOffset;
+              const cp2y = p2.y;
+              
               return (
-                <line
+                <path
                   key={e.id}
-                  x1={p1.x}
-                  y1={p1.y}
-                  x2={p2.x}
-                  y2={p2.y}
+                  d={`M ${p1.x} ${p1.y} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`}
                   stroke="white"
-                  strokeOpacity="0.8"
+                  strokeOpacity="0.85"
                   strokeWidth="2"
-                  strokeDasharray="6 6"
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
                 />
               );
             })}
             {dragConnection && (
-              <line
-                x1={dragConnection.start.x}
-                y1={dragConnection.start.y}
-                x2={dragConnection.current.x}
-                y2={dragConnection.current.y}
+              <path
+                d={`M ${dragConnection.start.x} ${dragConnection.start.y} C ${dragConnection.start.x + 50} ${dragConnection.start.y}, ${dragConnection.current.x - 50} ${dragConnection.current.y}, ${dragConnection.current.x} ${dragConnection.current.y}`}
                 stroke="white"
-                strokeOpacity="0.8"
+                strokeOpacity="0.85"
                 strokeWidth="2"
-                strokeDasharray="6 6"
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
               />
             )}
           </svg>
@@ -541,6 +655,7 @@ const Feature = () => {
                   setUsedTypes((prev) => ({ ...prev, [n.type]: false }));
                 }}
                 onViewDetails={handleViewDetails}
+                onStartDrag={onStartDragNode}
               />
               {/* Source handle (plus) on right side if node can start now */}
               {canNodeStartNow(n) && (
@@ -564,8 +679,12 @@ const Feature = () => {
               )}
             </div>
           ))}
+
+          {/* Removed variables UI */}
+          </div>
         </div>
       </main>
+
 
       {/* Node Details Modal */}
       {selectedNode && (
@@ -599,15 +718,105 @@ const Feature = () => {
                   Incoming: {countIncoming(selectedNode.id)}, Outgoing: {countOutgoing(selectedNode.id)}
                 </p>
               </div>
-              <div>
-                <label className="text-sm text-white/70">Capabilities</label>
-                <div className="flex gap-2 mt-1">
-                  {NODE_SPECS[selectedNode.type].canStartConnection && (
-                    <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">Can Start</span>
-                  )}
-                  {NODE_SPECS[selectedNode.type].canReceiveConnection && (
-                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">Can Receive</span>
-                  )}
+              {/* n8n-like IO and Parameters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Inputs */}
+                <div className="border border-white/10 rounded-lg">
+                  <div className="px-3 py-2 border-b border-white/10 text-sm font-medium">Inputs</div>
+                  <div className="p-3 space-y-2">
+                    {nodes.find(n => n.id === selectedNode.id)?.inputs?.length ? (
+                      nodes.find(n => n.id === selectedNode.id)!.inputs.map((inp) => (
+                        <div key={inp.id} className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+                          <div className="text-xs">
+                            <span className="text-white/90 font-medium">{inp.name}</span>
+                            <span className="text-white/50 ml-2">{inp.type}</span>
+                          </div>
+                          <button
+                            className="size-6 grid place-items-center rounded bg-white/10 hover:bg-white/20"
+                            onClick={() => setNodes(prev => prev.map(n => n.id === selectedNode.id ? { ...n, inputs: n.inputs.filter(i => i.id !== inp.id) } : n))}
+                            title="Remove input"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-white/50">No inputs</p>
+                    )}
+                  </div>
+                </div>
+                {/* Outputs */}
+                <div className="border border-white/10 rounded-lg">
+                  <div className="px-3 py-2 border-b border-white/10 text-sm font-medium">Outputs</div>
+                  <div className="p-3 space-y-2">
+                    {nodes.find(n => n.id === selectedNode.id)?.outputs?.length ? (
+                      nodes.find(n => n.id === selectedNode.id)!.outputs.map((out) => (
+                        <div key={out.id} className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+                          <div className="text-xs">
+                            <span className="text-white/90 font-medium">{out.name}</span>
+                            <span className="text-white/50 ml-2">{out.type}</span>
+                          </div>
+                          <button
+                            className="size-6 grid place-items-center rounded bg-white/10 hover:bg-white/20"
+                            onClick={() => setNodes(prev => prev.map(n => n.id === selectedNode.id ? { ...n, outputs: n.outputs.filter(o => o.id !== out.id) } : n))}
+                            title="Remove output"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-white/50">No outputs</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Create parameter and attach */}
+              <div className="border border-white/10 rounded-lg">
+                <div className="px-3 py-2 border-b border-white/10 text-sm font-medium">Add parameter</div>
+                <div className="p-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+                  <input
+                    value={paramForm.name}
+                    onChange={(e) => setParamForm((p) => ({ ...p, name: e.target.value }))}
+                    placeholder="Name"
+                    className="md:col-span-2 px-3 py-2 bg-white/5 border border-white/15 rounded text-sm focus:outline-none focus:ring-2 focus:ring-white/20"
+                  />
+                  <select
+                    value={paramForm.type}
+                    onChange={(e) => setParamForm((p) => ({ ...p, type: e.target.value as VarType }))}
+                    className="px-3 py-2 bg-white/5 border border-white/15 rounded text-sm"
+                  >
+                    <option value="string" className="bg-[#0d0d0d] text-white">String</option>
+                    <option value="number" className="bg-[#0d0d0d] text-white">Number</option>
+                    <option value="boolean" className="bg-[#0d0d0d] text-white">Boolean</option>
+                    <option value="object" className="bg-[#0d0d0d] text-white">Object</option>
+                  </select>
+                  <select
+                    value={paramForm.attachTo}
+                    onChange={(e) => setParamForm((p) => ({ ...p, attachTo: e.target.value as 'input' | 'output' }))}
+                    className="px-3 py-2 bg-white/5 border border-white/15 rounded text-sm"
+                  >
+                    <option value="input" className="bg-[#0d0d0d] text-white">Attach to: Input</option>
+                    <option value="output" className="bg-[#0d0d0d] text-white">Attach to: Output</option>
+                  </select>
+                  <button
+                    className="md:col-span-4 h-9 rounded bg-white/10 hover:bg-white/20 text-sm"
+                    onClick={() => {
+                      if (!paramForm.name.trim()) return;
+                      const id = `var-${Date.now()}`;
+                      setNodes((prev) => prev.map((n) => {
+                        if (n.id !== selectedNode.id) return n;
+                        if (paramForm.attachTo === 'input') {
+                          return { ...n, inputs: [...n.inputs, { id, name: paramForm.name.trim(), type: paramForm.type }] };
+                        }
+                        return { ...n, outputs: [...n.outputs, { id, name: paramForm.name.trim(), type: paramForm.type }] };
+                      }));
+                      setParamForm({ name: '', type: 'string', attachTo: 'input' });
+                    }}
+                  >
+                    Add parameter
+                  </button>
                 </div>
               </div>
             </div>

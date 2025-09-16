@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { RadialGlowBackground } from "@/components/radial-glow-background";
 import { BlurFade } from "@/components/blur-fade";
 import { useNavigate } from "react-router-dom";
+import FeatureHoverSection from "@/components/FeatureHoverSection";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ const Index = () => {
         </div>
       </div>
       </div>
+      <FeatureHoverSection />
     </RadialGlowBackground>
   );
 };
