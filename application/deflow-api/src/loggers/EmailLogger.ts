@@ -2,7 +2,7 @@ import { LoggerNode } from 'src/utils/LoggerNode';
 import { NodeMessage } from '../utils/NodeMessage';
 
 export class LoggerTemplate extends LoggerNode {
-  name = 'logger-template';
+  name = 'LoggerTemplate';
   description = 'A template for creating new logger nodes';
   private transporter: any;
   private from: string;

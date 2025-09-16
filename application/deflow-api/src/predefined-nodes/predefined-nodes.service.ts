@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { PredefinedNode } from 'src/models/PredefinedNodes';
@@ -29,8 +29,13 @@ export class PredefinedNodesService {
   async getPredefinedNodeById(id: string): Promise<PredefinedNode> {
     const node = await this.predefinedNodeModel.findOne({ id }).exec();
     if (!node) {
-      throw new Error('Predefined node not found');
+      throw new NotFoundException('Predefined node not found');
     }
     return node;
+  }
+
+  async deletePredefinedNode(id: string): Promise<{ deleted: boolean }> {
+    const result = await this.predefinedNodeModel.deleteOne({ id }).exec();
+    return { deleted: result.deletedCount === 1 };
   }
 }

@@ -1,4 +1,12 @@
-import { Keypair, TransactionBuilder, Networks, Operation, BASE_FEE, Account, Asset, Horizon } from '@stellar/stellar-sdk';
+import {
+  Keypair,
+  TransactionBuilder,
+  Networks,
+  Operation,
+  BASE_FEE,
+  Asset,
+  Horizon,
+} from '@stellar/stellar-sdk';
 import { ActionNode } from '../utils/ActionNode';
 import { NodeMessage } from '../utils/NodeMessage';
 
@@ -17,8 +25,15 @@ export class TransactionNode extends ActionNode {
 
   constructor(params: TransactionParams) {
     super();
-    if (!params || !params.user_secret || !params.destination || !params.amount) {
-      throw new Error('TransactionNode requires user_secret, destination and amount');
+    if (
+      !params ||
+      !params.user_secret ||
+      !params.destination ||
+      !params.amount
+    ) {
+      throw new Error(
+        'TransactionNode requires user_secret, destination and amount',
+      );
     }
     this.params = params;
     this.server = new Horizon.Server('https://horizon-testnet.stellar.org');
@@ -39,7 +54,7 @@ export class TransactionNode extends ActionNode {
             destination: this.params.destination,
             asset: Asset.native(),
             amount: this.params.amount,
-          })
+          }),
         )
         .setTimeout(30)
         .build();

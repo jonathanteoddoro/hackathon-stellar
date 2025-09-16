@@ -2,7 +2,7 @@ import { LoggerNode } from '../utils/LoggerNode';
 import { NodeMessage } from '../utils/NodeMessage';
 
 export class WhatsAppLogger extends LoggerNode {
-  name = 'whatsapp-logger';
+  name = 'WhatsAppLogger';
   description = process.env.TWILIO_ACCOUNT_SID || '';
   private accountSid = process.env.TWILIO_ACCOUNT_SID;
   private authToken = process.env.TWILIO_AUTH_TOKEN;

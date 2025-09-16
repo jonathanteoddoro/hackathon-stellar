@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { PredefinedNodesService } from './predefined-nodes.service';
 import { CreatePredefinedNodeDto } from './dto/create-predefined-node.dto';
 
@@ -25,5 +25,10 @@ export class PredefinedNodesController {
   @Get(':id')
   async getPredefinedNodeById(@Param('id') id: string) {
     return await this.predefinedNodesService.getPredefinedNodeById(id);
+  }
+
+  @Delete(':id')
+  async deletePredefinedNode(@Param('id') id: string) {
+    return await this.predefinedNodesService.deletePredefinedNode(id);
   }
 }

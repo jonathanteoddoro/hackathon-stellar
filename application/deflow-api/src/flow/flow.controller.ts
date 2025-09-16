@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Param, Post } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { CreateFlowNodeDto } from './dto/create-flowNode.dto';
 import { LinkNodesDto } from './dto/link-nodes.dto';
