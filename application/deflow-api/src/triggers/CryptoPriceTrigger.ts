@@ -172,6 +172,7 @@ export class CryptoPriceTrigger extends TriggerNode {
               percentOfLimit: (priceResult.price / limitPrice) * 100,
               priceTimestamp: priceResult.timestamp,
             });
+            await job.stop();
             callback(message, nodeId, flowId);
           } else if (
             this.params.condition === 'lt' &&
@@ -184,7 +185,8 @@ export class CryptoPriceTrigger extends TriggerNode {
               percentOfLimit: (priceResult.price / limitPrice) * 100,
               priceTimestamp: priceResult.timestamp,
             });
-            callback(message, nodeId);
+            await job.stop();
+            callback(message, nodeId, flowId);
           }
         } catch (error) {
           void error;

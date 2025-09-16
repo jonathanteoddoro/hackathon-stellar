@@ -58,7 +58,12 @@ export class SeederService {
         id: swapNode.name,
         name: swapNode.name,
         description: swapNode.description,
-        requiredParamsPayloadKeysTypes: { user_secret: 'string' },
+        requiredParamsPayloadKeysTypes: {
+          user_secret: 'string',
+          amount: 'string',
+          fromToken: 'string',
+          toToken: 'string',
+        },
         outputPayloadKeysTypes: { hash: 'string', status: 'string' },
         type: NodeType.Action,
       },

@@ -22,10 +22,12 @@ import { LinkNodesDto } from './dto/link-nodes.dto';
 import { PredefinedNodesService } from 'src/predefined-nodes/predefined-nodes.service';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { UpdateNodeDto } from './dto/update-position.dto';
+import { CronJob } from 'cron';
 
 @Injectable()
 export class FlowService {
   private readonly logger = new Logger(FlowService.name);
+  private jobs: Map<string, CronJob> = new Map();
 
   constructor(
     @InjectModel(Flow.name) private flowModel: Model<Flow>,
@@ -271,6 +273,9 @@ export class FlowService {
         }
       } else if (nodeInstance instanceof LoggerNode) {
         if (currentMessage) {
+          this.logger.log(
+            `Logger Node [${nodeInstance.name}] logging message.`,
+          );
           nodeInstance.execute(currentMessage);
         }
       }
@@ -301,14 +306,13 @@ export class FlowService {
               triggerNode.get('id'),
               triggerNode.get('flowId'),
             );
-            if (this.schedulerRegistry.doesExist('cron', jobName)) {
+            this.jobs.set(jobName, job);
+            if (job.isActive) {
               this.logger.log(
                 `Job trigger ${triggerNode.name} already exists, updating...`,
               );
-              this.schedulerRegistry.deleteCronJob(jobName);
-              job.start();
+              await job.stop();
             }
-            this.schedulerRegistry.addCronJob(jobName, job as unknown as never);
             job.start();
             this.logger.log(
               `Job trigger ${triggerNode.name} started with job name ${jobName}`,
@@ -427,12 +431,14 @@ export class FlowService {
       if (nodeInstance.isJobTrigger) {
         try {
           const jobName = `cron-job-${triggerNode.get('id')}`;
-          if (this.schedulerRegistry.doesExist('cron', jobName)) {
-            this.schedulerRegistry.deleteCronJob(jobName);
-            this.logger.log(`Job trigger ${triggerNode.name} stopped`);
-          } else {
-            this.logger.warn(
-              `Job trigger ${triggerNode.name} does not exist in scheduler`,
+          const job = this.jobs.get(jobName);
+          if (job) {
+            if (job.isActive) {
+              await job.stop();
+            }
+            this.jobs.delete(jobName);
+            this.logger.log(
+              `Job trigger ${triggerNode.name} with job name ${jobName} stopped and removed`,
             );
           }
         } catch (error) {

@@ -106,17 +106,13 @@ export class EmailLogger extends LoggerNode {
         <p><strong>Timestamp:</strong> ${new Date().toLocaleString('pt-BR')}</p>
         <p><strong>Mensagem:</strong> ${messageBody}</p>
         <hr>
-        <details>
-          <summary>Dados completos da mensagem</summary>
-          <pre>${JSON.stringify(message, null, 2)}</pre>
-        </details>
       `;
 
       const mailOptions: MailOptions = {
         from: this.from,
         to: this.to,
         subject: subject,
-        text: `${subject}\n\nTimestamp: ${new Date().toLocaleString('pt-BR')}\nMensagem: ${messageBody}\n\nDados: ${JSON.stringify(message, null, 2)}`,
+        text: `${subject}\n\nTimestamp: ${new Date().toLocaleString('pt-BR')}\nMensagem: ${messageBody}}`,
         html: htmlMessage,
       };
 

@@ -48,9 +48,11 @@ export class WhatsAppLogger extends LoggerNode {
       });
 
       if (response.ok) {
+        console.log('WhatsApp enviado com sucesso!');
         return message;
       } else {
         const error = await response.text();
+        console.error('Erro ao enviar WhatsApp:', error);
         throw new Error(`Erro do Twilio: ${error}`);
       }
     } catch (err) {

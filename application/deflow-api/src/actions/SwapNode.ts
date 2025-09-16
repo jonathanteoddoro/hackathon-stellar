@@ -58,19 +58,21 @@ export class SwapNode extends ActionNode {
     if (!params || !params.amount) {
       throw new Error('SwapNode requires a valid amount in constructor');
     }
-  this.params = params;
+    this.params = params;
 
-  const fromCode = (params.fromToken || 'XLM').toUpperCase();
-  const toCode = (params.toToken || 'USDC').toUpperCase();
+    const fromCode = (params.fromToken || 'XLM').toUpperCase();
+    const toCode = (params.toToken || 'USDC').toUpperCase();
 
-  const inAddr = TOKEN_ADDRESSES[fromCode];
-  const outAddr = TOKEN_ADDRESSES[toCode];
+    const inAddr = TOKEN_ADDRESSES[fromCode];
+    const outAddr = TOKEN_ADDRESSES[toCode];
 
-  if (!inAddr) throw new Error(`Unknown fromToken code in constructor: ${fromCode}`);
-  if (!outAddr) throw new Error(`Unknown toToken code in constructor: ${toCode}`);
+    if (!inAddr)
+      throw new Error(`Unknown fromToken code in constructor: ${fromCode}`);
+    if (!outAddr)
+      throw new Error(`Unknown toToken code in constructor: ${toCode}`);
 
-  this.assetInAddress = inAddr;
-  this.assetOutAddress = outAddr;
+    this.assetInAddress = inAddr;
+    this.assetOutAddress = outAddr;
   }
 
   async execute(message: NodeMessage): Promise<NodeMessage> {
@@ -122,10 +124,16 @@ export class SwapNode extends ActionNode {
       const signedTx = transaction.toXDR();
       await rateLimitDelay();
 
-      const result = await sdk.send(signedTx);
+      const result = (await sdk.send(signedTx)) as object;
       console.log(result);
 
-      return { ...message, payload: result };
+      return {
+        metadata: message.metadata,
+        payload: {
+          ...message.payload,
+          ...result,
+        },
+      };
     } catch (error) {
       console.error(error);
       return { ...message, payload: { error } };
