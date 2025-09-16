@@ -83,13 +83,35 @@ stellar contract deploy \
 # Salvar o CONTRACT_ID que aparecer na saída
 ```
 
-### 4. Configurar Backend
+### 4. Configurar Environment Variables
 ```bash
-cd ../../application/deflow-api
+cd application/deflow-api
 
-# Editar src/actions/ActionBlendLoanReal.ts
-# Linha 8: private contractId: string = 'SEU_CONTRACT_ID_AQUI';
-# Linha 9: private userAddress: string = 'SEU_ENDERECO_AQUI';
+# Copiar arquivo de exemplo
+cp .env.example .env
+
+# Editar com seus valores
+nano .env
+```
+
+**Configurar no arquivo `.env`:**
+```bash
+# Seu contract ID deployado
+STELLAR_CONTRACT_ID=SEU_CONTRACT_ID_AQUI
+
+# Seu endereço Stellar
+STELLAR_USER_ADDRESS=SEU_ENDERECO_AQUI
+
+# Opcional: Configurações Twilio para WhatsApp
+TWILIO_ACCOUNT_SID=your_account_sid
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+```
+
+### 5. Configurar Backend
+```bash
+# As configurações agora são feitas via .env
+# Não precisa mais editar código manualmente!
 ```
 
 ## 🧪 Testar o Sistema

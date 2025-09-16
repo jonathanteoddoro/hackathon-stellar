@@ -128,14 +128,27 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${YELLOW}📝 Atualizando configuração do backend...${NC}"
         cd ../../application/deflow-api
         
-        # Backup do arquivo original
-        cp src/actions/ActionBlendLoanReal.ts src/actions/ActionBlendLoanReal.ts.backup
+        # Criar arquivo .env com as configurações
+        echo -e "${YELLOW}📝 Criando arquivo .env...${NC}"
+        cd ../../application/deflow-api
         
-        # Atualizar CONTRACT_ID
-        sed -i "s/private contractId: string = '[^']*'/private contractId: string = '${CONTRACT_ID}'/" src/actions/ActionBlendLoanReal.ts
-        sed -i "s/private userAddress: string = '[^']*'/private userAddress: string = '${ACCOUNT_ADDRESS}'/" src/actions/ActionBlendLoanReal.ts
+        cat > .env << EOF
+# Stellar Blockchain Configuration
+STELLAR_CONTRACT_ID=${CONTRACT_ID}
+STELLAR_USER_ADDRESS=${ACCOUNT_ADDRESS}
+
+# Twilio Configuration (optional - for WhatsApp notifications)
+# TWILIO_ACCOUNT_SID=your_twilio_account_sid
+# TWILIO_AUTH_TOKEN=your_twilio_auth_token
+# TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+
+# Email Configuration (optional - for email notifications)
+# EMAIL_SERVICE=gmail
+# EMAIL_USER=your_email@gmail.com
+# EMAIL_PASS=your_app_password
+EOF
         
-        echo -e "✅ Configuração atualizada!"
+        echo -e "✅ Arquivo .env criado com as configurações!"
         
     else
         echo -e "${RED}❌ Erro no deploy${NC}"
@@ -146,7 +159,7 @@ fi
 # Teste final
 echo ""
 echo -e "${BLUE}🧪 Executando teste final...${NC}"
-cd ../../application/deflow-api
+cd application/deflow-api || cd ../../application/deflow-api
 
 if npx ts-node scripts/test-blend-real-action.ts; then
     echo ""
