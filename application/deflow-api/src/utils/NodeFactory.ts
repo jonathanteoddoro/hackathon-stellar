@@ -49,13 +49,19 @@ class NodeFactory {
     }
 
     if (!NodeClass) {
-      console.error(`Nó '${identifier}' não encontrado no registry. Registrados: ${Array.from(
-        this.registry.keys(),
-      ).join(', ')}`);
+      console.error(
+        `Nó '${identifier}' não encontrado no registry. Registrados: ${Array.from(
+          this.registry.keys(),
+        ).join(', ')}`,
+      );
       return null;
     }
 
     return new NodeClass(customParams);
+  }
+
+  static getClass(identifier: string): NodeConstructor<BaseNode> | null {
+    return this.registry.get(identifier) || null;
   }
 
   static getRegisteredNodes(): Array<{

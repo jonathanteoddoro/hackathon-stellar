@@ -14,7 +14,6 @@ export class TriggerFactory {
     switch (triggerId) {
       case 'cron-job':
         return this.cronJobTrigger;
-      case 'http-trigger':
       case 'http':
         return this.httpTrigger;
       default:

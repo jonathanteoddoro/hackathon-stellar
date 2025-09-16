@@ -7,7 +7,6 @@ import { TriggerFactory } from './trigger.factory';
 import { CronJobTrigger } from 'src/triggers/CronJobTrigger';
 import { HttpTrigger } from 'src/triggers/HttpTrigger';
 import { TriggerConfigSchema } from 'src/models/TriggerConfig';
-import { FlowDeployController } from './flow.deploy.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FlowSchema } from 'src/models/Flow';
 import { FlowNodeSchema } from 'src/models/FlowNode';
@@ -23,7 +22,7 @@ import { PredefinedNodesModule } from 'src/predefined-nodes/predefined-nodes.mod
     ]),
     PredefinedNodesModule,
   ],
-  controllers: [FlowController, FlowDeployController],
+  controllers: [FlowController],
   providers: [FlowService, TriggerFactory, CronJobTrigger, HttpTrigger],
   exports: [FlowService],
 })

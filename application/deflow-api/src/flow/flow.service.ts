@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ActionNode } from 'src/utils/ActionNode';
 import { LoggerNode } from 'src/utils/LoggerNode';
 import { NodeMessage } from 'src/utils/NodeMessage';
@@ -14,6 +18,7 @@ import { FlowNode } from 'src/models/FlowNode';
 import { CreateFlowNodeDto } from './dto/create-flowNode.dto';
 import { LinkNodesDto } from './dto/link-nodes.dto';
 import { PredefinedNodesService } from 'src/predefined-nodes/predefined-nodes.service';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 @Injectable()
 export class FlowService {
@@ -23,6 +28,7 @@ export class FlowService {
     @InjectModel(Flow.name) private flowModel: Model<Flow>,
     @InjectModel(FlowNode.name) private flowNodeModel: Model<FlowNode>,
     private readonly predefinedNodesService: PredefinedNodesService,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
   async createFlow(createFlowDto: CreateFlowDto): Promise<Flow> {
@@ -166,6 +172,25 @@ export class FlowService {
           currentMessage ? currentMessage.payload || {} : {},
         );
       }
+      if (currentNode.variables) {
+        // procurando por variaveis no formato {{varName}} e substituindo pelos valores do payload
+        for (const [key, value] of Object.entries(currentNode.variables)) {
+          const finalValue = this.extractVariables(
+            value,
+            currentMessage ? currentMessage.payload || {} : {},
+          );
+          if (!currentMessage) {
+            currentMessage = new NodeMessage();
+          }
+          if (!currentMessage.payload) {
+            currentMessage.payload = {};
+          }
+          if (!currentMessage.payload.variables) {
+            currentMessage.payload.variables = {};
+          }
+          currentMessage.payload.variables[key] = finalValue;
+        }
+      }
       const nodeInstance = NodeFactory.create(currentNode.name, params);
       if (nodeInstance instanceof TriggerNode) {
         currentMessage = nodeInstance.validatePayload(triggerPayload);
@@ -176,25 +201,7 @@ export class FlowService {
           this.logger.log(
             `Action Node [${nodeInstance.name}] executed successfully.`,
           );
-          if (currentNode.variables) {
-            // procurando por variaveis no formato {{varName}} e substituindo pelos valores do payload
-            for (const [key, value] of Object.entries(currentNode.variables)) {
-              const finalValue = this.extractVariables(
-                value,
-                currentMessage ? currentMessage.payload || {} : {},
-              );
-              if (!currentMessage) {
-                currentMessage = new NodeMessage();
-              }
-              if (!currentMessage.payload) {
-                currentMessage.payload = {};
-              }
-              if (!currentMessage.payload.variables) {
-                currentMessage.payload.variables = {};
-              }
-              currentMessage.payload.variables[key] = finalValue;
-            }
-          }
+
           queue.push(...currentNode.successFlow);
         } catch (error) {
           this.logger.error(
@@ -216,6 +223,57 @@ export class FlowService {
       } else if (nodeInstance instanceof LoggerNode) {
         if (currentMessage) {
           nodeInstance.execute(currentMessage);
+        }
+      }
+    }
+  }
+
+  async deployFlow(flowId: string): Promise<void> {
+    const triggersNodes = await this.flowNodeModel
+      .find({ flowId, type: NodeType.Trigger })
+      .exec();
+
+    if (triggersNodes.length === 0) {
+      throw new Error('No trigger nodes found in the flow');
+    }
+    for (const triggerNode of triggersNodes) {
+      const nodeInstance = NodeFactory.create(
+        triggerNode.name,
+        triggerNode.params,
+      );
+      if (!(nodeInstance instanceof TriggerNode)) {
+        throw new Error(`Node ${triggerNode.name} is not a trigger node`);
+      }
+      if (nodeInstance.isJobTrigger) {
+        try {
+          if (nodeInstance.execute) {
+            const { jobName, job } = nodeInstance.execute(
+              this.executeFlow.bind(this),
+              triggerNode.get('id'),
+            );
+            if (this.schedulerRegistry.doesExist('cron', jobName)) {
+              this.logger.log(
+                `Job trigger ${triggerNode.name} already exists, updating...`,
+              );
+              this.schedulerRegistry.deleteCronJob(jobName);
+              job.start();
+            }
+            this.schedulerRegistry.addCronJob(jobName, job as unknown as never);
+            job.start();
+            this.logger.log(
+              `Job trigger ${triggerNode.name} started with job name ${jobName}`,
+            );
+          } else {
+            throw new InternalServerErrorException(
+              `Trigger node ${triggerNode.name} does not have an execute method`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to start job trigger ${triggerNode.name}:`,
+            (error as Error)?.stack,
+          );
+          throw error;
         }
       }
     }
