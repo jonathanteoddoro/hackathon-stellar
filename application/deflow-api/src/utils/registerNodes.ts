@@ -35,11 +35,12 @@ export async function registerNodes() {
           const moduleName = path.basename(file, '.js');
 
           try {
-            const module = await import(modulePath);
-            const NodeClass = module[moduleName];
+            const module = (await import(modulePath)) as unknown;
+            const NodeClass = (module as Record<string, unknown>)[moduleName];
 
             if (NodeClass && typeof NodeClass === 'function') {
               const category = nodeDirectories[dir];
+
               NodeFactory.register(
                 moduleName,
                 NodeClass as new (params: object) => BaseNode,

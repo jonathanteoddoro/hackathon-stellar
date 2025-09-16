@@ -30,15 +30,19 @@ const data = {
           x: 400,
           y: 200,
           type: NodeType.Action,
-          name: 'FetchTokenPrice',
+          name: 'SwapNode',
           params: {
-            tokenContractAddress: '0xYourTokenContractAddress',
-            network: 'ethereum',
+            user_secret:
+              'SDHYBJ2AEA3YNIUA66G4TNU4FACRNB2C3AEYTJN6AY6NRZ5HUE3SZAZG',
           },
           description:
             'Busca o preço atual do token via API (ex: Coingecko ou DEX).',
           requiredInputPayloadKeysTypes: {
             value: 'number',
+          },
+          variables: {
+            message:
+              'Swapped {{value}} tokens for USD com o hash {{txHash}} _arm: {{returnValue._arm}}',
           },
           outputPayloadKeysTypes: {
             valueUsd: 'number',

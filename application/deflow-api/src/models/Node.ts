@@ -12,4 +12,5 @@ export class Node {
   params: Record<string, string>;
   requiredInputPayloadKeysTypes: { [key: string]: string };
   outputPayloadKeysTypes: { [key: string]: string };
+  variables?: Record<string, string>;
 }

@@ -48,8 +48,8 @@ class NodeFactory {
   // Lista nós por categoria
   static getNodesByCategory(category: NodeCategory): string[] {
     return Array.from(this.categoryMap.entries())
-      .filter(([_, cat]) => cat === category)
-      .map(([identifier, _]) => identifier);
+      .filter(([, cat]) => cat === category)
+      .map(([identifier]) => identifier);
   }
 }
 

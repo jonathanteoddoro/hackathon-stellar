@@ -31,16 +31,17 @@ export class FlowService {
       const currentNode = queue.shift();
       if (!currentNode) continue;
 
-      const nodeInstance = NodeFactory.create(
-        currentNode.name,
-        currentNode.params,
-      );
+      const params = currentNode.params || {};
+      // substituindo variaveis no formato {{varName}} pelos valores do payload
+      for (const [key, value] of Object.entries(params)) {
+        params[key] = this.extractVariables(
+          value,
+          currentMessage ? currentMessage.payload || {} : {},
+        );
+      }
+      const nodeInstance = NodeFactory.create(currentNode.name, params);
       if (nodeInstance instanceof TriggerNode) {
         currentMessage = nodeInstance.validatePayload(triggerPayload);
-        console.log(
-          `Trigger Node [${nodeInstance.name}] validated payload:`,
-          currentMessage,
-        );
         queue.push(...currentNode.successFlow);
       } else if (nodeInstance instanceof ActionNode) {
         try {
@@ -48,12 +49,42 @@ export class FlowService {
           console.log(
             `Action Node [${nodeInstance.name}] executed successfully.`,
           );
+          if (currentNode.variables) {
+            // procurando por variaveis no formato {{varName}} e substituindo pelos valores do payload
+            for (const [key, value] of Object.entries(currentNode.variables)) {
+              const finalValue = this.extractVariables(
+                value,
+                currentMessage ? currentMessage.payload || {} : {},
+              );
+              if (!currentMessage) {
+                currentMessage = new NodeMessage();
+              }
+              if (!currentMessage.payload) {
+                currentMessage.payload = {};
+              }
+              if (!currentMessage.payload.variables) {
+                currentMessage.payload.variables = {};
+              }
+              currentMessage.payload.variables[key] = finalValue;
+            }
+          }
+          console.log('Current Message:', currentMessage);
           queue.push(...currentNode.successFlow);
         } catch (error) {
           console.error(
             `Action Node [${nodeInstance.name}] execution failed:`,
             error,
           );
+          currentMessage = {
+            metadata: {
+              ...(currentMessage ? currentMessage.metadata : {}),
+            },
+            payload: {
+              ...(currentMessage ? currentMessage.payload : {}),
+              [`${nodeInstance.name}_error`]:
+                (error as Error)?.message || 'Unknown error',
+            },
+          };
           if (currentNode.errorFlow) queue.push(...currentNode.errorFlow);
         }
       } else if (nodeInstance instanceof LoggerNode) {
@@ -62,5 +93,34 @@ export class FlowService {
         }
       }
     }
+  }
+
+  private extractVariables(value: string, payload: object): string {
+    const varMatches = value.matchAll(/{{(.*?)}}/g);
+    let finalValue = value;
+
+    for (const match of varMatches) {
+      if (match[1]) {
+        const accessorKeys = match[1].split('.');
+        let varValue: any = payload;
+        for (const key of accessorKeys) {
+          if (
+            varValue &&
+            typeof varValue === 'object' &&
+            varValue !== null &&
+            key in varValue
+          ) {
+            varValue = (varValue as Record<string, unknown>)[key];
+          } else {
+            varValue = undefined;
+            break;
+          }
+        }
+        if (varValue !== undefined) {
+          finalValue = finalValue.replace(match[0], varValue);
+        }
+      }
+    }
+    return finalValue;
   }
 }

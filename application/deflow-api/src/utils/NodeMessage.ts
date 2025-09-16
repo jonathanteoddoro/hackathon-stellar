@@ -1,4 +1,8 @@
+type NodeMessagePayload = {
+  [key: string]: any;
+  variables?: Record<string, string>;
+};
 export class NodeMessage {
-  payload?: object;
+  payload?: NodeMessagePayload;
   metadata?: { [key: string]: any };
 }
