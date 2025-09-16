@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { FlowModule } from './flow/flow.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { PredefinedNodesModule } from './predefined-nodes/predefined-nodes.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       }),
       inject: [ConfigService],
     }),
+    PredefinedNodesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

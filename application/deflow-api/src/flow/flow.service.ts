@@ -1,34 +1,159 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ActionNode } from 'src/utils/ActionNode';
 import { LoggerNode } from 'src/utils/LoggerNode';
-import { Node } from 'src/models/Node';
 import { NodeMessage } from 'src/utils/NodeMessage';
 import { TriggerNode } from 'src/utils/TriggerNode';
 import { NodeFactory } from 'src/utils/NodeFactory';
-
-interface FlowData {
-  flowId: string;
-  name: string;
-  description: string;
-  nodes: Node[];
-}
+import { NodeType } from 'src/utils/NodeType';
+import { InjectModel } from '@nestjs/mongoose';
+import { Flow } from 'src/models/Flow';
+import { Model } from 'mongoose';
+import { CreateFlowDto } from './dto/create-flow.dto';
+import { v4 as uuidv4 } from 'uuid';
+import { FlowNode } from 'src/models/FlowNode';
+import { CreateFlowNodeDto } from './dto/create-flowNode.dto';
+import { LinkNodesDto } from './dto/link-nodes.dto';
+import { PredefinedNodesService } from 'src/predefined-nodes/predefined-nodes.service';
 
 @Injectable()
 export class FlowService {
   private readonly logger = new Logger(FlowService.name);
 
-  constructor() {}
+  constructor(
+    @InjectModel(Flow.name) private flowModel: Model<Flow>,
+    @InjectModel(FlowNode.name) private flowNodeModel: Model<FlowNode>,
+    private readonly predefinedNodesService: PredefinedNodesService,
+  ) {}
+
+  async createFlow(createFlowDto: CreateFlowDto): Promise<Flow> {
+    const createdFlow = new this.flowModel({
+      id: uuidv4(),
+      name: createFlowDto.name,
+      description: createFlowDto.description,
+    });
+    return createdFlow.save();
+  }
+
+  async addNodeToFlow(
+    createFlowNodeDto: CreateFlowNodeDto,
+    flowId: string,
+  ): Promise<FlowNode> {
+    const predefinedNode =
+      await this.predefinedNodesService.getPredefinedNodeById(
+        createFlowNodeDto.predefinedNodeId,
+      );
+
+    if (!predefinedNode) {
+      throw new Error('Predefined node not found');
+    }
+
+    const paramsRequired = predefinedNode.requiredParamsPayloadKeysTypes;
+
+    const params = JSON.parse(createFlowNodeDto.params) as Record<string, any>;
+    for (const key of Object.keys(paramsRequired)) {
+      if (!(key in params)) {
+        throw new Error(`Missing required param: ${key}`);
+      }
+      const expectedType = paramsRequired[key];
+      const actualType = typeof params[key];
+      if (actualType !== expectedType) {
+        throw new Error(
+          `Invalid type for param ${key}: expected ${expectedType}, got ${actualType}`,
+        );
+      }
+    }
+
+    const createdFlowNode = new this.flowNodeModel({
+      id: uuidv4(),
+      flowId,
+      name: createFlowNodeDto.name,
+      description: createFlowNodeDto.description,
+      type: createFlowNodeDto.type,
+      params: createFlowNodeDto.params,
+      x: createFlowNodeDto.x,
+      y: createFlowNodeDto.y,
+      variables: createFlowNodeDto.variables || {},
+    });
+    return createdFlowNode.save();
+  }
+
+  async linkNodes(linkNodesDto: LinkNodesDto): Promise<void> {
+    const fromNode = await this.flowNodeModel.findOne({
+      id: linkNodesDto.fromNodeId,
+    });
+    const toNode = await this.flowNodeModel.findOne({
+      id: linkNodesDto.toNodeId,
+    });
+
+    if (!fromNode || !toNode) {
+      throw new Error('One or both nodes not found');
+    }
+
+    if (fromNode.get('type') === NodeType.Action) {
+      if (linkNodesDto.isForErrorFlow) {
+        fromNode.errorFlow = fromNode.errorFlow || [];
+        fromNode.errorFlow.push(toNode._id as unknown as FlowNode);
+      } else {
+        fromNode.successFlow.push(toNode._id as unknown as FlowNode);
+      }
+      await fromNode.save();
+      return;
+    }
+
+    fromNode.successFlow.push(toNode._id as unknown as FlowNode);
+    await fromNode.save();
+  }
+
+  async unlinkNodes(linkNodesDto: LinkNodesDto): Promise<void> {
+    const fromNode = await this.flowNodeModel.findOne({
+      id: linkNodesDto.fromNodeId,
+    });
+    const toNode = await this.flowNodeModel.findOne({
+      id: linkNodesDto.toNodeId,
+    });
+
+    if (!fromNode || !toNode) {
+      throw new Error('One or both nodes not found');
+    }
+    if (fromNode.get('type') === NodeType.Action) {
+      if (linkNodesDto.isForErrorFlow && fromNode.errorFlow) {
+        fromNode.errorFlow = fromNode.errorFlow.filter(
+          (node) => node.id !== toNode.id,
+        );
+      } else if (fromNode.successFlow) {
+        fromNode.successFlow = fromNode.successFlow.filter(
+          (node) => node.id !== toNode.id,
+        );
+      }
+      await fromNode.save();
+      return;
+    }
+  }
+
   async executeFlow(
-    flowData: FlowData,
     triggerPayload: object,
     triggerNodeId: string,
+    flowId: string,
   ): Promise<void> {
-    const currentNode = flowData.nodes.find(
-      (node) => node.id === triggerNodeId,
-    );
-
+    const currentNode = await this.flowNodeModel
+      .findOne({ id: triggerNodeId })
+      .populate('successFlow')
+      .populate('errorFlow')
+      .exec();
+    if (!currentNode) {
+      throw new Error('Trigger node not found');
+    }
+    if (currentNode.type !== NodeType.Trigger) {
+      throw new Error('Node is not a trigger node');
+    }
+    if (!currentNode.successFlow || currentNode.successFlow.length === 0) {
+      throw new Error('Trigger node has no success flow defined');
+    }
+    if (currentNode.flowId !== flowId) {
+      throw new Error('Trigger node does not belong to the specified flow');
+    }
     let currentMessage: NodeMessage | null = null;
-    const queue = [currentNode];
+    const queue: FlowNode[] = [currentNode];
     while (queue.length > 0) {
       const currentNode = queue.shift();
       if (!currentNode) continue;
